@@ -2,5 +2,5 @@ package jl95.pubsub;
 
 public interface Subscription {
 
-    Boolean isInSubscription(Topic topic);
+    Boolean accepts(String topicName);
 }

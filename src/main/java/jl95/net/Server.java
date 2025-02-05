@@ -1,5 +1,6 @@
 package jl95.net;
 
+import static java.lang.String.*;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
@@ -19,7 +20,7 @@ public class Server {
         class Editable implements Options {
 
             public Method2<Server, Socket>    acceptCb        = (server, socket) -> uncheck(() -> {
-                System.out.printf(String.format("Got new connection: %s\nConnection callback method is not overridden\nClose connection", socket));
+                System.out.printf("Got new connection: %s\nConnection callback method is not overridden\nClose connection\n", socket);
                 socket.close();
             });
             public Method2<Server, Exception> acceptErrorCb   = (server, ex)     -> System.out.printf("Error on accept connection: %s%n", ex);;
@@ -50,10 +51,9 @@ public class Server {
         this.acceptTimeoutCb = options::onAcceptTimeout;
     }
 
-    synchronized
-    public final void         start() {
+    synchronized public final void         start    () {
 
-        if (isRunning) throw new IllegalStateException();
+        if (isRunning()) throw new IllegalStateException();
         toStop = false;
         stopFuture = new CompletableFuture<>();
         new Thread(() -> {
@@ -61,9 +61,7 @@ public class Server {
                 try {
                     java.net.Socket socket;
                     try {
-                        synchronized (sync) {
-                            socket = serverSocket.accept();
-                        }
+                        socket = serverSocket.accept();
                     }
                     catch (java.net.SocketTimeoutException ex) /* not really an error - just to give control back to the thread every so often */ {
                         acceptTimeoutCb.call(this);
@@ -84,11 +82,14 @@ public class Server {
         }).start();
         isRunning = true;
     }
-    synchronized
-    public final Future<Void> stop () {
+    synchronized public final Future<Void> stop     () {
 
-        if (!isRunning) throw new IllegalStateException();
+        if (!isRunning()) throw new IllegalStateException();
+        if (stopFuture == null) throw new AssertionError();
         toStop = true;
         return stopFuture;
     }
+    synchronized public final void         stopAwait() { uncheck(() -> stop().get()); }
+    synchronized public final Boolean      isRunning() { return isRunning; }
+    synchronized public final ServerSocket getSocket() { return serverSocket; }
 }

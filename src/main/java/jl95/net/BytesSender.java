@@ -6,7 +6,7 @@ import jl95.lang.variadic.*;
 
 public class BytesSender extends Sender<byte[]> {
 
-    public BytesSender(Function0<OutputStream> out) { super(out); }
+    public BytesSender(OutputStream out) { super(out); }
 
     @Override protected byte[] toBytes  (byte[] outgoing) { return outgoing; }
 }

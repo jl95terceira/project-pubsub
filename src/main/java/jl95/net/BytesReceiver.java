@@ -6,7 +6,7 @@ import jl95.lang.variadic.*;
 
 public class BytesReceiver extends Receiver<byte[]> {
 
-    public BytesReceiver(Function0<InputStream> inputGetter) { super(inputGetter); }
+    public BytesReceiver(InputStream input) { super(input); }
 
     @Override protected byte[] fromBytes(byte[] bytes)  { return bytes; }
 }

@@ -7,7 +7,7 @@ import javax.json.*;
 import jl95.pubsub.protocol.Message;
 import jl95.lang.variadic.*;
 
-public class Serializer {
+public class MessageSerializer {
 
     public enum Id {
 
@@ -26,8 +26,8 @@ public class Serializer {
      * @return request serializer function
      * @param <B> request body type
      */
-    public static <B> Function1<JsonObject, Message<B>> get(String                    typeName,
-                                                            Function1<JsonValue, B>   bodySerializer) {
+    public static <B> Function1<JsonValue, Message<B>> get(String                    typeName,
+                                                           Function1<JsonValue, B>   bodySerializer) {
         return req -> {
             var job = Json.createObjectBuilder();
             for (var t: I(

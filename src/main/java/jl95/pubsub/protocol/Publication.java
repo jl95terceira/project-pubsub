@@ -7,13 +7,13 @@ import jl95.lang.variadic.*;
 
 public class Publication extends NamedDataClass {
 
-    public String topic;
+    public String topicName;
     public byte[] data;
 
     @Override
     protected Iterable<Tuple2<String, ?>> namedData() {
         return I(
-            tuple("topic", topic),
+            tuple("topic", topicName),
             tuple("data" , data)
         );
     }

@@ -3,7 +3,6 @@ package jl95.pubsub.serdes;
 import static jl95.lang.SuperPowers.*;
 
 import javax.json.Json;
-import javax.json.JsonObject;
 import javax.json.JsonValue;
 
 import jl95.pubsub.protocol.Publication;
@@ -19,12 +18,12 @@ public class PublicationJsonSerdes {
         Id(String value) {this.value = value;}
     }
 
-    public static JsonObject  toJson  (Publication req) {
+    public static JsonValue   toJson  (Publication req) {
 
         var job = Json.createObjectBuilder();
         for (var t: I(
 
-            tuple(Id.TOPIC, SerdesDefaults.stringToJson.call                                  (req.topic)),
+            tuple(Id.TOPIC, SerdesDefaults.stringToJson.call                                  (req.topicName)),
             tuple(Id.DATA , SerdesDefaults.stringToJson.call(SerdesDefaults.bytesToString.call(req.data)))
 
         ).map(t -> tuple(t.a1.value, t.a2))) {
@@ -38,8 +37,8 @@ public class PublicationJsonSerdes {
         var x = new Publication();
         for (var t: I(
 
-            tuple(Id.TOPIC, method((String i) -> { x.topic =                                     SerdesDefaults.stringFromJson.call(jo.get(i)); })),
-            tuple(Id.DATA , method((String i) -> { x.data  = SerdesDefaults.bytesFromString.call(SerdesDefaults.stringFromJson.call(jo.get(i))); }))
+            tuple(Id.TOPIC, method((String i) -> { x.topicName =                                      SerdesDefaults.stringFromJson.apply(jo.get(i)); })),
+            tuple(Id.DATA , method((String i) -> { x.data      = SerdesDefaults.bytesFromString.apply(SerdesDefaults.stringFromJson.apply(jo.get(i))); }))
 
         )) {
                 t.a2.call(t.a1.value);

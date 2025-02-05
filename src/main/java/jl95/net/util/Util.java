@@ -16,4 +16,7 @@ public class Util {
             return socket;
         });
     }
+    public static ServerSocket getSimpleServerSocket(InetSocketAddress addr) {
+        return getSimpleServerSocket(addr, Defaults.acceptTimeoutMs);
+    }
 }

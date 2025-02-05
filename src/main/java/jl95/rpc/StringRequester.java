@@ -1,15 +1,17 @@
 package jl95.rpc;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import jl95.rpc.util.SerdesDefaults;
 
 public class StringRequester {
 
-    public static Requester<String, String> get(Requester.Options options) {
+    public static Requester<String, String> get(OutputStream output, InputStream input, GenericRequester.Options options) {
 
-        return new Requester<>(options) {
-
-            @Override protected byte[] writeRequest(String object) { return SerdesDefaults.stringToBytes  .call(object); }
-            @Override protected String readResponse(byte[] serial) { return SerdesDefaults.stringFromBytes.call(serial); }
-        };
+        return BytesRequester.get(output, input, options).adapted(
+            SerdesDefaults.stringToBytes,
+            SerdesDefaults.stringFromBytes
+        );
     }
 }
