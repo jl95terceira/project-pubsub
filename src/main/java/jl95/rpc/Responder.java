@@ -1,28 +1,63 @@
 package jl95.rpc;
 
-import static jl95.lang.SuperPowers.uncheck;
+import java.util.UUID;
 
-import java.util.concurrent.Future;
+import jl95.lang.Awaitable;
+import jl95.lang.variadic.*;
+import jl95.net.BytesReceiver;
+import jl95.net.BytesSender;
+import jl95.net.Io;
+import jl95.net.Receiver;
+import jl95.net.Sender;
+import jl95.rpc.protocol.Response;
+import jl95.rpc.serdes.ResponseJsonSerdes;
+import jl95.rpc.serdes.RequestJsonSerdes;
+import jl95.rpc.util.SerdesDefaults;
 
-import jl95.lang.variadic.Function1;
+public abstract class Responder<A, R> implements ResponderIf<A, R> {
 
-public interface Responder<A, R> {
+    public static class StartWhenAlreadyRunningException extends RuntimeException {}
+    public static class StopWhenNotRunningException      extends RuntimeException {}
 
-    void         start    (Function1<R, A> responseFunction);
-    Future<Void> stop     ();
-    void         stopAwait();
-    Boolean      isRunning();
+    private final Receiver<byte[]> receiver;
+    private final Sender  <byte[]> sender;
 
-    default <A2, R2> Responder<A2, R2> adapted(Function1<A2, A> argAdapter,
-                                               Function1<R, R2> reAdapter) {
-        return new Responder<A2, R2>() {
+    protected abstract A      readRequest  (byte[] serial);
+    protected abstract byte[] writeResponse(R      object);
 
-            @Override public void         start    (Function1<R2, A2> responseFunction) {
-                Responder.this.start(a -> reAdapter.apply(responseFunction.apply(argAdapter.apply(a))));
-            }
-            @Override public Future<Void> stop     () { return Responder.this.stop     (); }
-            @Override public void         stopAwait() {        Responder.this.stopAwait(); }
-            @Override public Boolean      isRunning() { return Responder.this.isRunning(); }
-        };
+    public Responder(Io io) {
+
+        this.receiver = new BytesReceiver(io.getInputStream());
+        this.sender   = new BytesSender  (io.getOutputStream());
+    }
+
+    @Override synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {
+
+        if (isRunning()) throw new StartWhenAlreadyRunningException();
+        return receiver.recvWhile(serial -> {
+
+            var request = RequestJsonSerdes.fromJson
+                         (SerdesDefaults   .jsonFromString .call
+                         (SerdesDefaults   .stringFromBytes.call(serial)));
+            var requestPayloadObject = readRequest(request.payload);
+            var responsePayloadObject   = responseFunction.call(requestPayloadObject);
+            var response       = new Response();
+            response.id        = UUID.randomUUID();
+            response.requestId = request.id;
+            response.payload   = writeResponse(responsePayloadObject);
+            sender.send(SerdesDefaults .stringToBytes.call
+                       (SerdesDefaults .jsonToString .call
+                       (ResponseJsonSerdes.toJson(response))));
+            return true;
+        });
+    }
+    @Override synchronized public Awaitable<Void> stop     () {
+
+        if (!isRunning()) throw new StopWhenNotRunningException();
+        return receiver.recvStop();
+    }
+    @Override synchronized public Boolean         isRunning() {
+
+        return receiver.isReceiving();
     }
 }

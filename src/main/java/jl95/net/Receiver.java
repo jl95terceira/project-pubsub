@@ -10,6 +10,7 @@ import java.util.concurrent.Future;
 import static java.lang.String.*;
 import static jl95.lang.SuperPowers.uncheck;
 
+import jl95.lang.*;
 import jl95.lang.variadic.*;
 
 public abstract class Receiver<T> {
@@ -44,6 +45,7 @@ public abstract class Receiver<T> {
     private final InputStream             input;
     private       Boolean                 isReceiving = false;
     private       Boolean                 toStop      = false;
+    private       CompletableFuture<Void> startFuture;
     private       CompletableFuture<Void> stopFuture;
 
     protected abstract T fromBytes(byte[] incoming);
@@ -52,13 +54,16 @@ public abstract class Receiver<T> {
         this.input = input;
     }
 
-    synchronized public final void         recvWhile    (Function1<Boolean, T> incomingCbToContinue,
-                                                         RecvOptions<T>        options) {
+    synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue,
+                                                            RecvOptions<T>        options) {
         if (isReceiving) {
             throw new StartWhenAlreadyOnException();
         }
-        toStop     = false;
+        toStop      = false;
+        startFuture = new CompletableFuture<>();
+        stopFuture  = new CompletableFuture<>();
         new Thread(() -> {
+            startFuture.complete(null);
             while (!toStop) {
                 byte[] incomingAsBytes;
                 try {
@@ -102,28 +107,33 @@ public abstract class Receiver<T> {
             stopFuture.complete(null);
             options.afterStop(this);
         }).start();
-        stopFuture = new CompletableFuture<>();
         isReceiving = true;
+        return Awaitable.of(startFuture);
     }
-    synchronized public final void         recvWhile    (Function1<Boolean, T> incomingCbToContinue) { recvWhile(incomingCbToContinue, RecvOptions.defaults()); }
-    synchronized public final void         recv         (Method1<T>            incomingCb,
-                                                         RecvOptions<T>        options) {
-        recvWhile((T incoming) -> {
+    synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
+
+        return recvWhile(incomingCbToContinue, RecvOptions.defaults());
+    }
+    synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb,
+                                                            RecvOptions<T>        options) {
+        return recvWhile((T incoming) -> {
             incomingCb.call(incoming);
             return true;
         }, options);
     }
-    synchronized public final void         recv         (Method1<T>            incomingCb) { recv(incomingCb, RecvOptions.defaults()); }
-    synchronized public final Future<Void> recvStop     () {
+    synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb) {
+
+        return recv(incomingCb, RecvOptions.defaults());
+    }
+    synchronized public final Awaitable<Void> recvStop     () {
 
         if (!isReceiving) {
             throw new StopWhenNotOnException();
         }
         toStop = true; // to be checked in loop, after which the future above will be completed
         assert stopFuture != null;
-        return stopFuture;
+        return Awaitable.of(stopFuture);
     }
-    synchronized public final void         recvStopAwait() { uncheck(() -> recvStop().get()); }
 
     public final Boolean           isReceiving   () {
         return isReceiving;

@@ -5,27 +5,27 @@ import static jl95.lang.SuperPowers.*;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.rpc.util.Defaults;
-import jl95.rpc.util.Io;
+import jl95.rpc.util.CloseableIo;
 import jl95.rpc.util.Util;
 
 public class Test {
 
-    Io ioAsServer;
-    Io ioAsClient;
-    Requester<String, String> requester;
-    Responder<String, String> responder;
+    CloseableIo ioAsServer;
+    CloseableIo ioAsClient;
+    RequesterIf<String, String> requester;
+    ResponderIf<String, String> responder;
 
     @org.junit.Before
     public void setUp() throws Exception {
         System.out.println("Setup");
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.util.Defaults.serverAddr);
-            return StringRequester.get(ioAsServer.output(), ioAsServer.input(), GenericRequester.Options.defaults());
+            return StringRequesterFactory.get(ioAsServer, Requester.SendOptions.defaults());
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.util.Defaults.serverAddr);
-            return StringResponder.get(ioAsClient.input(), ioAsClient.output());
+            return StringResponderFactory.get(ioAsClient);
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();
@@ -41,12 +41,12 @@ public class Test {
 
     @org.junit.Test
     public void test() {
-        responder.start(msg -> "hello, " + msg);
+        responder.start(msg -> "hello, " + msg).await();
         org.junit.Assert.assertEquals("hello, world", requester.apply("world"));
     }
     @org.junit.Test
     public void test2() { // to confirm that the server socket is closed correctly (in tearDown) - otherwise, an address binding error will happen
-        responder.start(msg -> "greetings, " + msg);
+        responder.start(msg -> "greetings, " + msg).await();
         org.junit.Assert.assertEquals("greetings, universe", requester.apply("universe"));
     }
     @org.junit.Test
@@ -59,9 +59,9 @@ public class Test {
             requester.apply("whatever");
             org.junit.Assert.fail("response timeout exception must be raised");
         }
-        catch (GenericRequester.ResponseTimeoutException ex) {}
-        responder.stopAwait();
-        responder.start(self::apply);
+        catch (Requester.ResponseTimeoutException ex) {/* as expected */}
+        responder.stop ()           .await();
+        responder.start(self::apply).await();
         org.junit.Assert.assertEquals("test", requester.apply("test"));
     }
 }

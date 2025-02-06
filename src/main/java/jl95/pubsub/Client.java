@@ -6,19 +6,17 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import javax.json.JsonValue;
 
+import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
 import jl95.net.JsonReceiver;
 import jl95.net.JsonSender;
 import jl95.net.Receiver;
 import jl95.net.Sender;
-import jl95.net.util.ReceiverBySocket;
-import jl95.net.util.SenderBySocket;
 import jl95.pubsub.protocol.Message;
 import jl95.pubsub.protocol.Publication;
 import jl95.pubsub.protocol.requests.Close;
@@ -67,14 +65,14 @@ public class Client {
     public Client(Socket            socket,
                   Options           options) {
         this.socket = socket;
-        var jsonSender = SenderBySocket.get(socket, JsonSender::new);
+        var jsonSender = new JsonSender(uncheck(socket::getOutputStream));
         this.pubSender     = jsonSender.extend(SerdesDefaults.pubMsgToJson);
         this.closeSender   = jsonSender.extend(SerdesDefaults.closeReqToJson);
         this.subListSender = jsonSender.extend(SerdesDefaults.subListReqToJson);
         this.subReSender   = jsonSender.extend(SerdesDefaults.subRegexReqToJson);
         this.subAllSender  = jsonSender.extend(SerdesDefaults.subAllReqToJson);
         this.subNoneSender = jsonSender.extend(SerdesDefaults.subNoneReqToJson);
-        this.jsonReceiver  = ReceiverBySocket.get(socket, JsonReceiver::new);
+        this.jsonReceiver  = new JsonReceiver(uncheck(socket::getInputStream));
         this.switchDeser   = new MessageSwitchingDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,
@@ -90,35 +88,31 @@ public class Client {
         this(getConnectedSocket(serverAddr), options);
     }
 
-    synchronized public final void         produce         (Publication          pub) {
+    synchronized public final void            produce         (Publication          pub) {
 
         sendMessage(pub, pubSender);
     }
-    synchronized public final void         produce         (String               topicName,
-                                                            byte[]               data) {
+    synchronized public final void            produce         (String               topicName,
+                                                               byte[]               data) {
 
         var pub = new Publication();
         pub.topicName = topicName;
         pub.data      = data;
         produce(pub);
     }
-    synchronized public final void         consume         () {
+    synchronized public final void            consume         () {
 
         jsonReceiver.recvWhile(switchDeser);
     }
-    synchronized public final Future<Void> consumeStop     () {
+    synchronized public final Awaitable<Void> consumeStop     () {
 
         return jsonReceiver.recvStop();
     }
-    synchronized public final void         consumeStopAwait() {
-
-        jsonReceiver.recvStopAwait();
-    }
-    synchronized public final Boolean      isConsuming     () {
+    synchronized public final Boolean         isConsuming     () {
 
         return jsonReceiver.isReceiving();
     }
-    synchronized public final void         onConsumed      (Method1<Publication> pubCallback) {
+    synchronized public final void            onConsumed      (Method1<Publication> pubCallback) {
 
         if (!isConsuming()) {
             consume();

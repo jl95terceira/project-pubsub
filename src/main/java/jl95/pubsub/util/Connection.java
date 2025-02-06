@@ -6,11 +6,11 @@ import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import jl95.net.util.ReceiverBySocket;
-import jl95.net.util.SenderBySocket;
+import javax.json.JsonValue;
+
+import jl95.lang.Awaitable;
 import jl95.pubsub.protocol.Message;
 import jl95.net.*;
 import jl95.pubsub.Subscription;
@@ -25,21 +25,19 @@ public class Connection {
     private      Boolean            queueIsOn      = false;
     private      Boolean            queueToStop    = false;
 
-    public final Socket         socket;
-    public final Sender<Message<Publication>>
-                                pubSender;
-    public final JsonReceiver   jsonReceiver;
-    public       Subscription   subscription   = (topic) -> false;
+    public final Socket                         socket;
+    public final Sender<Message<Publication>>   pubSender;
+    public final Receiver<JsonValue>            jsonReceiver;
+    public       Subscription                   subscription = (topic) -> false;
 
     public Connection(Socket socket) {
-        this.socket       = socket;
-        this.jsonReceiver = ReceiverBySocket.get(socket, JsonReceiver::new);
-        this.pubSender    = SenderBySocket  .get(socket, JsonSender  ::new)
-                                            .extend(SerdesDefaults.pubMsgToJson);
+        this.socket        = socket;
+        this.jsonReceiver  = new JsonReceiver(uncheck(socket::getInputStream));
+        this.pubSender     = new JsonSender  (uncheck(socket::getOutputStream)).extend(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized
-    public final void         startQueue    () {
+    public final void            startQueue    () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -54,17 +52,13 @@ public class Connection {
         }).start();
         queueIsOn = true;
     }
-    public final Future<Void> stopQueue     () {
+    public final Awaitable<Void> stopQueue     () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
-        return queueStopFuture;
+        return Awaitable.of(queueStopFuture);
     }
-    public final void         stopQueueAwait() {
-
-        uncheck(() -> stopQueue().get());
-    }
-    public final Boolean      isQueueRunning() { return queueIsOn; }
-    public final void         pub           (Message<Publication> pubMsg) {
+    public final Boolean         isQueueRunning() { return queueIsOn; }
+    public final void            pub           (Message<Publication> pubMsg) {
 
         queue.add(pubMsg);
     }

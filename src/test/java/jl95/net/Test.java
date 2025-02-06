@@ -1,12 +1,10 @@
 package jl95.net;
 
 import static java.lang.String.*;
+import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
 import java.util.*;
-
-import jl95.net.util.ReceiverBySocket;
-import jl95.net.util.SenderBySocket;
 
 public class Test {
 
@@ -30,7 +28,7 @@ public class Test {
                     }
                     catch(Exception ex) {}
                 }));
-                ReceiverBySocket.get(sock, StringReceiver::new).recv(System.out::println);
+                new StringReceiver(uncheck(sock::getInputStream)).recv(System.out::println);
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -39,7 +37,7 @@ public class Test {
         var client = new java.net.Socket();
         client.connect(addr);
         while (!toStop) {
-             SenderBySocket.get(client, StringSender::new).send(format("Hello, at %s;", java.time.Instant.now()));
+             new StringSender(uncheck(client::getOutputStream)).send(format("Hello, at %s;", java.time.Instant.now()));
              Thread.sleep(1000);
         }
         System.out.println("Done");
@@ -65,7 +63,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 var messagesSendIterator = messagesSend.iterator();
-                ReceiverBySocket.get(sock, StringReceiver::new).recv(message -> {
+                new StringReceiver(uncheck(sock::getInputStream)).recv(message -> {
                     charsReceivedNr[0] += message.length();
                     org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
                     org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
@@ -78,7 +76,7 @@ public class Test {
         var client = new java.net.Socket();
         client.connect(addr);
         for (var message: messagesSend) {
-             SenderBySocket.get(client, StringSender::new).send(message);
+             new StringSender(uncheck(client::getOutputStream)).send(message);
         }
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
         System.out.println("OK!");

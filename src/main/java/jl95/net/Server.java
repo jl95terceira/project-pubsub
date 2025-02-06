@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.concurrent.Future;
 import java.util.concurrent.CompletableFuture;
 
+import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
 
 public class Server {
@@ -40,6 +41,7 @@ public class Server {
     private final Object                     sync      = new Object();
     private       Boolean                    isRunning = false;
     private       Boolean                    toStop    = false;
+    private       CompletableFuture<Void>    startFuture;
     private       CompletableFuture<Void>    stopFuture;
 
 
@@ -51,12 +53,14 @@ public class Server {
         this.acceptTimeoutCb = options::onAcceptTimeout;
     }
 
-    synchronized public final void         start    () {
+    synchronized public final Awaitable<Void> start    () {
 
         if (isRunning()) throw new IllegalStateException();
-        toStop = false;
-        stopFuture = new CompletableFuture<>();
+        toStop      = false;
+        startFuture = new CompletableFuture<>();
+        stopFuture  = new CompletableFuture<>();
         new Thread(() -> {
+            startFuture.complete(null);
             while (!toStop) {
                 try {
                     java.net.Socket socket;
@@ -81,15 +85,15 @@ public class Server {
             isRunning = false;
         }).start();
         isRunning = true;
+        return Awaitable.of(startFuture);
     }
-    synchronized public final Future<Void> stop     () {
+    synchronized public final Awaitable<Void> stop     () {
 
         if (!isRunning()) throw new IllegalStateException();
         if (stopFuture == null) throw new AssertionError();
         toStop = true;
-        return stopFuture;
+        return Awaitable.of(stopFuture);
     }
-    synchronized public final void         stopAwait() { uncheck(() -> stop().get()); }
-    synchronized public final Boolean      isRunning() { return isRunning; }
-    synchronized public final ServerSocket getSocket() { return serverSocket; }
+    synchronized public final Boolean         isRunning() { return isRunning; }
+    synchronized public final ServerSocket    getSocket() { return serverSocket; }
 }

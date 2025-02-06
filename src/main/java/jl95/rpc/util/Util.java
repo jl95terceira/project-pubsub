@@ -16,10 +16,10 @@ import jl95.net.util.Defaults;
 
 public class Util {
 
-        public static Io getIoFromSocket(Socket            socket) {
-            return new Io() {
-                @Override public InputStream  input () { return uncheck(socket::getInputStream); }
-                @Override public OutputStream output() { return uncheck(socket::getOutputStream); }
+        public static CloseableIo getIoFromSocket(Socket            socket) {
+            return new CloseableIo() {
+                @Override public InputStream getInputStream() { return uncheck(socket::getInputStream); }
+                @Override public OutputStream getOutputStream() { return uncheck(socket::getOutputStream); }
                 @Override public void         close () {
                     if (!socket.isClosed()) {
                         uncheck(socket::close);
@@ -27,12 +27,12 @@ public class Util {
                 }
             };
         }
-        public static Io getIoAsClient  (InetSocketAddress addr) {
+        public static CloseableIo getIoAsClient  (InetSocketAddress addr) {
             var socket = new Socket();
             uncheck(() -> socket.connect(addr));
             return getIoFromSocket(socket);
         }
-        public static Io getIoAsServer  (InetSocketAddress addr,
+        public static CloseableIo getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
             var serverOptions = new Server.Options.Editable();
             var clientSocketFuture = new CompletableFuture<Socket>();
@@ -44,9 +44,9 @@ public class Util {
             var clientSocket = uncheck(() -> clientConnectionTimeoutMs.isPresent()
                                            ? clientSocketFuture.get(clientConnectionTimeoutMs.get(), TimeUnit.MILLISECONDS)
                                            : clientSocketFuture.get());
-            server.stopAwait(); // stop server right away - no need to accept more connections
+            server.stop().await(); // stop server right away - no need to accept more connections
             uncheck(server.getSocket()::close); // release bind address
             return getIoFromSocket(clientSocket);
         }
-        public static Io getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
+        public static CloseableIo getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
 }

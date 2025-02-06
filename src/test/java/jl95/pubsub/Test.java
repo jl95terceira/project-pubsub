@@ -19,11 +19,11 @@ public class Test {
     @org.junit.Before
     public void setUp() {
         server = new Server(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs), Server.Options.defaults());
-        server.startAccept();
+        server.startAccept().await();
     }
     @org.junit.After
     public void tearDown() {
-        server.stopAcceptAwait();
+        server.stopAccept().await();
         uncheck(() -> server.getNetServer().getSocket().close());
     }
 
@@ -47,6 +47,7 @@ public class Test {
             msgFuture.complete(new String(msg.data));
         });
         subscriber.subscribeByList(I("foo"));
+        sleep(125);
         publisher.produce("foo", "BAR".getBytes());
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
@@ -73,6 +74,7 @@ public class Test {
         publisher.produce("foo", "BAR".getBytes());
         org.junit.Assert.assertFalse(msgFuture.isDone());
         subscriber.subscribeByList(I("foo"));
+        sleep(125);
         publisher.produce("foo", "BAR".getBytes());
         sleep(125);
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));

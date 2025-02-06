@@ -7,10 +7,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
 
 import javax.json.JsonValue;
 
+import jl95.lang.Awaitable;
 import jl95.net.Receiver;
 import jl95.net.util.Util;
 import jl95.pubsub.protocol.requests.Close;
@@ -69,8 +69,11 @@ public class Server {
         this(Util.getSimpleServerSocket(addr), options);
     }
 
+    private Connection                               getConnection     (InetSocketAddress addr) {
+        return connectionsMap.get(new ConnectionKey(addr));
+    }
     private void                                     onAccept          (Socket     socket) {
-        var connection = new Connection(socket);
+        var connection = new Connection   (socket);
         var key        = new ConnectionKey(socket);
         connectionsMap.put(key, connection);
         var switchingDeser = new MessageSwitchingDeserializer<Boolean>();
@@ -106,7 +109,7 @@ public class Server {
     }
     private void                                     close             (Connection connection) {
         if (connection.isQueueRunning()) {
-            connection.stopQueueAwait();
+            connection.stopQueue().await();
         }
         uncheck(connection.socket::close);
         connectionsMap.remove(new ConnectionKey(connection.socket));
@@ -119,8 +122,7 @@ public class Server {
             return true;
         };
     }
-    private <S extends Subscription>
-            Function1<Boolean, Message<Publication>> getPubReqHandler  (Connection connection) {
+    private Function1<Boolean, Message<Publication>> getPubReqHandler  (Connection connection) {
         return req -> {
             var pub = req.body;
             for (var other: connectionsMap.values()) {
@@ -132,17 +134,13 @@ public class Server {
         };
     }
 
-    public final void                   startAccept     () {
+    public final Awaitable<Void>        startAccept     () {
 
-        uncheck(netServer::start);
+        return netServer.start();
     }
-    public final Future<Void>           stopAccept      () {
+    public final Awaitable<Void>        stopAccept      () {
 
         return netServer.stop();
-    }
-    public final void                   stopAcceptAwait () {
-
-        uncheck(() -> stopAccept().get());
     }
     public final Iterable<InetSocketAddress> getAddressesLazy() {
 
@@ -154,12 +152,12 @@ public class Server {
     }
     public final Subscription           getSubscription (InetSocketAddress addr) {
 
-        return connectionsMap.get(new ConnectionKey(addr)).subscription;
+        return getConnection(addr).subscription;
     }
     public final void                   setSubscription (InetSocketAddress addr,
                                                          Subscription subscription) {
 
-        connectionsMap.get(new ConnectionKey(addr)).subscription = subscription;
+        getConnection(addr).subscription = subscription;
     }
     public final void                   closeAll        () {
 
