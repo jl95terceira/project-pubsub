@@ -4,6 +4,8 @@ import static jl95.lang.SuperPowers.*;
 
 import java.util.concurrent.CompletableFuture;
 
+import jl95.rpc.impl.StringRequesterFactory;
+import jl95.rpc.impl.StringResponderFactory;
 import jl95.rpc.util.Defaults;
 import jl95.rpc.util.CloseableIo;
 import jl95.rpc.util.Util;

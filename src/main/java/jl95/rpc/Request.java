@@ -1,10 +1,9 @@
-package jl95.rpc.protocol;
+package jl95.rpc;
 
 import java.util.UUID;
 
-public class Response {
+public class Request {
 
     public UUID   id;
-    public UUID   requestId;
     public byte[] payload;
 }

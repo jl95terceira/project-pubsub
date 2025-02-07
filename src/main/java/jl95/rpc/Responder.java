@@ -9,7 +9,6 @@ import jl95.net.BytesSender;
 import jl95.net.Io;
 import jl95.net.Receiver;
 import jl95.net.Sender;
-import jl95.rpc.protocol.Response;
 import jl95.rpc.serdes.ResponseJsonSerdes;
 import jl95.rpc.serdes.RequestJsonSerdes;
 import jl95.rpc.util.SerdesDefaults;

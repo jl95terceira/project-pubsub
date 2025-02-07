@@ -1,8 +1,9 @@
-package jl95.rpc;
+package jl95.rpc.impl;
 
 import javax.json.JsonValue;
 
 import jl95.net.Io;
+import jl95.rpc.ResponderIf;
 import jl95.rpc.util.SerdesDefaults;
 
 public class JsonResponderFactory {

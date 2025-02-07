@@ -8,7 +8,7 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonValue;
 
-import jl95.rpc.protocol.Request;
+import jl95.rpc.Request;
 import jl95.rpc.util.SerdesDefaults;
 
 public class RequestJsonSerdes {

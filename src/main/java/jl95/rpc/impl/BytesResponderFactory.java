@@ -1,6 +1,7 @@
-package jl95.rpc;
+package jl95.rpc.impl;
 
 import jl95.net.Io;
+import jl95.rpc.Responder;
 
 public class BytesResponderFactory extends Responder<byte[], byte[]> {
 

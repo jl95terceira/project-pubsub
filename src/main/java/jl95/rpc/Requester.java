@@ -11,8 +11,6 @@ import java.util.concurrent.TimeUnit;
 import jl95.net.Io;
 import jl95.net.Receiver;
 import jl95.net.Sender;
-import jl95.rpc.protocol.Request;
-import jl95.rpc.protocol.Response;
 import jl95.rpc.util.SerdesDefaults;
 
 public abstract class Requester<A, R> implements RequesterIf<A, R> {
