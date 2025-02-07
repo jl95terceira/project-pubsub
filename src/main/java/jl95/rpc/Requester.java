@@ -11,6 +11,8 @@ import java.util.concurrent.TimeUnit;
 import jl95.net.Io;
 import jl95.net.Receiver;
 import jl95.net.Sender;
+import jl95.rpc.util.Request;
+import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
 public abstract class Requester<A, R> implements RequesterIf<A, R> {
@@ -21,7 +23,7 @@ public abstract class Requester<A, R> implements RequesterIf<A, R> {
     }
     private static class ResponseStatusAndData {
         public ResponseExceptionalStatus status   = null;
-        public Response                  response;
+        public Response response;
     }
 
     public interface SendOptions {

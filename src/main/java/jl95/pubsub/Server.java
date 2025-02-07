@@ -23,7 +23,7 @@ import jl95.lang.variadic.*;
 import jl95.pubsub.protocol.Message;
 import jl95.pubsub.protocol.Publication;
 import jl95.pubsub.serdes.PublicationJsonSerdes;
-import jl95.pubsub.serdes.MessageSwitchingDeserializer;
+import jl95.pubsub.serdes.MessageSwitchedDeserializer;
 import jl95.pubsub.serdes.requests.CloseJsonSerdes;
 import jl95.pubsub.serdes.requests.SubscriptionByListJsonSerdes;
 import jl95.pubsub.serdes.requests.SubscriptionToAllJsonSerdes;
@@ -76,7 +76,7 @@ public class Server {
         var connection = new Connection   (socket);
         var key        = new ConnectionKey(socket);
         connectionsMap.put(key, connection);
-        var switchingDeser = new MessageSwitchingDeserializer<Boolean>();
+        var switchingDeser = new MessageSwitchedDeserializer<Boolean>();
         switchingDeser.addCase(
             MessageType.REQ_CLOSE.serial,
             CloseJsonSerdes::fromJson,

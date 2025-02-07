@@ -4,8 +4,6 @@ import static jl95.lang.SuperPowers.*;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.rpc.impl.StringRequesterFactory;
-import jl95.rpc.impl.StringResponderFactory;
 import jl95.rpc.util.Defaults;
 import jl95.rpc.util.CloseableIo;
 import jl95.rpc.util.Util;
@@ -22,12 +20,12 @@ public class Test {
         System.out.println("Setup");
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.util.Defaults.serverAddr);
-            return StringRequesterFactory.get(ioAsServer, Requester.SendOptions.defaults());
+            return RequestersCollection.getStringRequester(ioAsServer);
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.util.Defaults.serverAddr);
-            return StringResponderFactory.get(ioAsClient);
+            return RespondersCollection.getStringResponser(ioAsClient);
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();

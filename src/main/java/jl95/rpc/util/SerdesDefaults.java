@@ -5,8 +5,6 @@ import java.util.Base64;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.Function1;
-import jl95.rpc.Request;
-import jl95.rpc.Response;
 import jl95.rpc.serdes.RequestJsonSerdes;
 import jl95.rpc.serdes.ResponseJsonSerdes;
 import jl95.serdes.JsonFromString;

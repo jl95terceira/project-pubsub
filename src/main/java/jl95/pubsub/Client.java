@@ -24,7 +24,7 @@ import jl95.pubsub.protocol.requests.SubscriptionByList;
 import jl95.pubsub.protocol.requests.SubscriptionByRegex;
 import jl95.pubsub.protocol.requests.SubscriptionToAll;
 import jl95.pubsub.protocol.requests.SubscriptionToNone;
-import jl95.pubsub.serdes.MessageSwitchingDeserializer;
+import jl95.pubsub.serdes.MessageSwitchedDeserializer;
 import jl95.pubsub.serdes.PublicationJsonSerdes;
 import jl95.pubsub.util.MessageType;
 import jl95.pubsub.util.SerdesDefaults;
@@ -52,7 +52,7 @@ public class Client {
     private final Sender<Message<SubscriptionToAll>>    subAllSender;
     private final Sender<Message<SubscriptionToNone>>   subNoneSender;
     private final Receiver<JsonValue>                   jsonReceiver;
-    private final MessageSwitchingDeserializer<Boolean> switchDeser;
+    private final MessageSwitchedDeserializer<Boolean>  switchDeser;
     private       Method1<Publication>                  pubCallback = (pub) -> {/* pass */};
 
     synchronized private <T> void sendMessage(T object, Sender<Message<T>> sender) {
@@ -73,7 +73,7 @@ public class Client {
         this.subAllSender  = jsonSender.extend(SerdesDefaults.subAllReqToJson);
         this.subNoneSender = jsonSender.extend(SerdesDefaults.subNoneReqToJson);
         this.jsonReceiver  = new JsonReceiver(uncheck(socket::getInputStream));
-        this.switchDeser   = new MessageSwitchingDeserializer<>();
+        this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,
             PublicationJsonSerdes::fromJson,

@@ -11,6 +11,7 @@ import jl95.net.Receiver;
 import jl95.net.Sender;
 import jl95.rpc.serdes.ResponseJsonSerdes;
 import jl95.rpc.serdes.RequestJsonSerdes;
+import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
 public abstract class Responder<A, R> implements ResponderIf<A, R> {
