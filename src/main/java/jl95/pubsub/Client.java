@@ -18,7 +18,7 @@ import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
 import jl95.net.SendersCollection;
 import jl95.pubsub.protocol.Message;
-import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.requests.Publication;
 import jl95.pubsub.protocol.requests.Close;
 import jl95.pubsub.protocol.requests.SubscriptionByList;
 import jl95.pubsub.protocol.requests.SubscriptionByRegex;
@@ -112,12 +112,18 @@ public class Client {
 
         return jsonReceiver.isReceiving();
     }
-    synchronized public final void            onConsumed      (Method1<Publication> pubCallback) {
+    synchronized public final void            onConsumed      (Method1<Publication>    pubCallback) {
 
         if (!isConsuming()) {
             consume();
         }
         this.pubCallback = pubCallback;
+    }
+    synchronized public final void            onConsumed      (Method2<String, byte[]> pubCallback) {
+
+        onConsumed(pub -> {
+            pubCallback.accept(pub.topicName, pub.data);
+        });
     }
 
     public final void close           () {
@@ -125,29 +131,41 @@ public class Client {
         sendMessage(new Close(), closeSender);
         uncheck(socket::close);
     }
-    public final void subscribeByList (Set<String>      topicNames) {
+    public final void subscribe       (SubscriptionByList  sub) {
+        subscribeByList(sub.topicNames);
+    }
+    public final void subscribeByList (Set<String>         topicNames) {
 
         var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
         sendMessage(sub, subListSender);
     }
-    public final void subscribeByList (Iterable<String> topicNames) {
+    public final void subscribeByList (Iterable<String>    topicNames) {
 
         subscribeByList(I.of(topicNames).toSet());
     }
-    public final void subscribeByRegex(Pattern          topicPattern) {
+    public final void subscribe       (SubscriptionByRegex sub) {
+        subscribeByRegex(sub.topicPattern);
+    }
+    public final void subscribeByRegex(Pattern             topicPattern) {
 
         var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
         sendMessage(sub, subReSender);
     }
-    public final void subscribeByRegex(String           topicPattern) {
+    public final void subscribeByRegex(String              topicPattern) {
 
         subscribeByRegex(Pattern.compile(topicPattern));
+    }
+    public final void subscribe       (SubscriptionToAll   sub) {
+        subscribeToAll();
     }
     public final void subscribeToAll  () {
 
         sendMessage(new SubscriptionToAll(), subAllSender);
+    }
+    public final void subscribe       (SubscriptionToNone  sub) {
+        subscribeToNone();
     }
     public final void subscribeToNone () {
 

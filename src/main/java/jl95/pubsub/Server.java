@@ -21,7 +21,7 @@ import jl95.pubsub.util.MessageType;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
 import jl95.pubsub.protocol.Message;
-import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.requests.Publication;
 import jl95.pubsub.serdes.PublicationJsonSerdes;
 import jl95.pubsub.serdes.MessageSwitchedDeserializer;
 import jl95.pubsub.serdes.requests.CloseJsonSerdes;
@@ -70,9 +70,6 @@ public class Server {
         this(Util.getSimpleServerSocket(addr), options);
     }
 
-    private ServerConnection getConnection     (InetSocketAddress addr) {
-        return connectionsMap.get(new ServerConnectionKey(addr));
-    }
     private void                                     onAccept          (Socket     socket) {
         var connection = new ServerConnection(socket);
         var key        = new ServerConnectionKey(socket);
@@ -107,6 +104,9 @@ public class Server {
         };
         connection.jsonReceiver.recvWhile(switchingDeser, recvOptions);
         connection.startQueue();
+    }
+    private ServerConnection                         getConnection     (InetSocketAddress addr) {
+        return connectionsMap.get(new ServerConnectionKey(addr));
     }
     private void                                     close             (ServerConnection connection) {
         if (connection.isQueueRunning()) {

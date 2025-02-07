@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.*;
 import javax.json.Json;
 import javax.json.JsonValue;
 
-import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.requests.Publication;
 import jl95.pubsub.util.SerdesDefaults;
 
 public class PublicationJsonSerdes {

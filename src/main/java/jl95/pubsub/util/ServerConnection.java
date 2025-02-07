@@ -14,7 +14,7 @@ import jl95.lang.Awaitable;
 import jl95.pubsub.protocol.Message;
 import jl95.net.*;
 import jl95.pubsub.Subscription;
-import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.requests.Publication;
 
 public class ServerConnection {
 

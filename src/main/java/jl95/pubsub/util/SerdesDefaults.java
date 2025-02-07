@@ -7,7 +7,7 @@ import javax.json.JsonValue;
 
 import jl95.lang.variadic.*;
 import jl95.pubsub.protocol.Message;
-import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.requests.Publication;
 import jl95.pubsub.protocol.requests.Close;
 import jl95.pubsub.protocol.requests.SubscriptionByList;
 import jl95.pubsub.protocol.requests.SubscriptionByRegex;
