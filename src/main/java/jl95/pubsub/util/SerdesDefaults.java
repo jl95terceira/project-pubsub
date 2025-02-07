@@ -6,20 +6,19 @@ import java.util.List;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.*;
-import jl95.pubsub.protocol.Message;
-import jl95.pubsub.protocol.requests.Publication;
-import jl95.pubsub.protocol.requests.Close;
-import jl95.pubsub.protocol.requests.SubscriptionByList;
-import jl95.pubsub.protocol.requests.SubscriptionByRegex;
-import jl95.pubsub.protocol.requests.SubscriptionToAll;
-import jl95.pubsub.protocol.requests.SubscriptionToNone;
-import jl95.pubsub.serdes.PublicationJsonSerdes;
-import jl95.pubsub.serdes.MessageSerializer;
-import jl95.pubsub.serdes.requests.CloseJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionByListJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionByRegexJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionToAllJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionToNoneJsonSerdes;
+import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.protocol.Close;
+import jl95.pubsub.protocol.SubscriptionByList;
+import jl95.pubsub.protocol.SubscriptionByRegex;
+import jl95.pubsub.protocol.SubscriptionToAll;
+import jl95.pubsub.protocol.SubscriptionToNone;
+import jl95.pubsub.util.serdes.PublicationJsonSerdes;
+import jl95.pubsub.util.serdes.MessageSerializer;
+import jl95.pubsub.util.serdes.protocol.CloseJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.serdes.*;
 
 public class SerdesDefaults {

@@ -1,4 +1,4 @@
-package jl95.pubsub.serdes;
+package jl95.pubsub.util.serdes;
 
 import static jl95.lang.SuperPowers.*;
 
@@ -7,7 +7,7 @@ import java.util.UUID;
 
 import javax.json.JsonValue;
 
-import jl95.pubsub.protocol.Message;
+import jl95.pubsub.util.Message;
 import jl95.pubsub.util.SerdesDefaults;
 import jl95.lang.variadic.Function1;
 

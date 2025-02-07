@@ -1,4 +1,4 @@
-package jl95.pubsub.protocol.requests;
+package jl95.pubsub.protocol;
 
 import static jl95.lang.SuperPowers.*;
 

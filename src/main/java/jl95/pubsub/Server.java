@@ -13,21 +13,21 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.net.Receiver;
 import jl95.net.util.Util;
-import jl95.pubsub.protocol.requests.Close;
-import jl95.pubsub.serdes.requests.SubscriptionByRegexJsonSerdes;
+import jl95.pubsub.protocol.Close;
+import jl95.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.pubsub.util.ServerConnection;
 import jl95.pubsub.util.ServerConnectionKey;
 import jl95.pubsub.util.MessageType;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
-import jl95.pubsub.protocol.Message;
-import jl95.pubsub.protocol.requests.Publication;
-import jl95.pubsub.serdes.PublicationJsonSerdes;
-import jl95.pubsub.serdes.MessageSwitchedDeserializer;
-import jl95.pubsub.serdes.requests.CloseJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionByListJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionToAllJsonSerdes;
-import jl95.pubsub.serdes.requests.SubscriptionToNoneJsonSerdes;
+import jl95.pubsub.util.Message;
+import jl95.pubsub.protocol.Publication;
+import jl95.pubsub.util.serdes.PublicationJsonSerdes;
+import jl95.pubsub.util.serdes.MessageSwitchedDeserializer;
+import jl95.pubsub.util.serdes.protocol.CloseJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
+import jl95.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 
 public class Server {
 
