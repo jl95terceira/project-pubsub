@@ -15,8 +15,8 @@ import jl95.net.Receiver;
 import jl95.net.util.Util;
 import jl95.pubsub.protocol.requests.Close;
 import jl95.pubsub.serdes.requests.SubscriptionByRegexJsonSerdes;
-import jl95.pubsub.util.Connection;
-import jl95.pubsub.util.ConnectionKey;
+import jl95.pubsub.util.ServerConnection;
+import jl95.pubsub.util.ServerConnectionKey;
 import jl95.pubsub.util.MessageType;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
@@ -50,8 +50,9 @@ public class Server {
         static Options defaults() { return new Editable(); }
     }
 
-    private final Map<ConnectionKey, Connection> connectionsMap = new ConcurrentHashMap<>();
-    private final jl95.net.Server                netServer;
+    private final Map<ServerConnectionKey, ServerConnection>
+                                    connectionsMap = new ConcurrentHashMap<>();
+    private final jl95.net.Server   netServer;
 
     public Server(ServerSocket      socket,
                   Options           options) {
@@ -69,12 +70,12 @@ public class Server {
         this(Util.getSimpleServerSocket(addr), options);
     }
 
-    private Connection                               getConnection     (InetSocketAddress addr) {
-        return connectionsMap.get(new ConnectionKey(addr));
+    private ServerConnection getConnection     (InetSocketAddress addr) {
+        return connectionsMap.get(new ServerConnectionKey(addr));
     }
     private void                                     onAccept          (Socket     socket) {
-        var connection = new Connection   (socket);
-        var key        = new ConnectionKey(socket);
+        var connection = new ServerConnection(socket);
+        var key        = new ServerConnectionKey(socket);
         connectionsMap.put(key, connection);
         var switchingDeser = new MessageSwitchedDeserializer<Boolean>();
         switchingDeser.addCase(
@@ -107,22 +108,22 @@ public class Server {
         connection.jsonReceiver.recvWhile(switchingDeser, recvOptions);
         connection.startQueue();
     }
-    private void                                     close             (Connection connection) {
+    private void                                     close             (ServerConnection connection) {
         if (connection.isQueueRunning()) {
             connection.stopQueue().await();
         }
         uncheck(connection.socket::close);
-        connectionsMap.remove(new ConnectionKey(connection.socket));
+        connectionsMap.remove(new ServerConnectionKey(connection.socket));
     }
-    private Function1<Boolean, Message<Close>>       getCloseReqHandler(Connection connection) { return req -> false; }
+    private Function1<Boolean, Message<Close>>       getCloseReqHandler(ServerConnection connection) { return req -> false; }
     private <S extends Subscription>
-            Function1<Boolean, Message<S>>           getSubReqHandler  (Connection connection) {
+            Function1<Boolean, Message<S>>           getSubReqHandler  (ServerConnection connection) {
         return req -> {
             connection.subscription = req.body;
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>> getPubReqHandler  (Connection connection) {
+    private Function1<Boolean, Message<Publication>> getPubReqHandler  (ServerConnection connection) {
         return req -> {
             var pub = req.body;
             for (var other: connectionsMap.values()) {
