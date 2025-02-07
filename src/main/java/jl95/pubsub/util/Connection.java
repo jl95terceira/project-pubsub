@@ -32,8 +32,8 @@ public class Connection {
 
     public Connection(Socket socket) {
         this.socket        = socket;
-        this.jsonReceiver  = new JsonReceiver(uncheck(socket::getInputStream));
-        this.pubSender     = new JsonSender  (uncheck(socket::getOutputStream)).extend(SerdesDefaults.pubMsgToJson);
+        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
+        this.pubSender     = SendersCollection  .getJsonSender  (uncheck(socket::getOutputStream)).extend(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

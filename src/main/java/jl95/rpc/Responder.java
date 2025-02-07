@@ -4,11 +4,11 @@ import java.util.UUID;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
-import jl95.net.BytesReceiver;
-import jl95.net.BytesSender;
 import jl95.net.Io;
 import jl95.net.Receiver;
+import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
+import jl95.net.SendersCollection;
 import jl95.rpc.serdes.ResponseJsonSerdes;
 import jl95.rpc.serdes.RequestJsonSerdes;
 import jl95.rpc.util.Response;
@@ -27,8 +27,8 @@ public abstract class Responder<A, R> implements ResponderIf<A, R> {
 
     public Responder(Io io) {
 
-        this.receiver = new BytesReceiver(io.getInputStream());
-        this.sender   = new BytesSender  (io.getOutputStream());
+        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream());
+        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream());
     }
 
     @Override synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {

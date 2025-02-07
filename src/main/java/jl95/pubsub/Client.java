@@ -13,10 +13,10 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
-import jl95.net.JsonReceiver;
-import jl95.net.JsonSender;
 import jl95.net.Receiver;
+import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
+import jl95.net.SendersCollection;
 import jl95.pubsub.protocol.Message;
 import jl95.pubsub.protocol.Publication;
 import jl95.pubsub.protocol.requests.Close;
@@ -65,14 +65,14 @@ public class Client {
     public Client(Socket            socket,
                   Options           options) {
         this.socket = socket;
-        var jsonSender = new JsonSender(uncheck(socket::getOutputStream));
+        var jsonSender = SendersCollection.getJsonSender(uncheck(socket::getOutputStream));
         this.pubSender     = jsonSender.extend(SerdesDefaults.pubMsgToJson);
         this.closeSender   = jsonSender.extend(SerdesDefaults.closeReqToJson);
         this.subListSender = jsonSender.extend(SerdesDefaults.subListReqToJson);
         this.subReSender   = jsonSender.extend(SerdesDefaults.subRegexReqToJson);
         this.subAllSender  = jsonSender.extend(SerdesDefaults.subAllReqToJson);
         this.subNoneSender = jsonSender.extend(SerdesDefaults.subNoneReqToJson);
-        this.jsonReceiver  = new JsonReceiver(uncheck(socket::getInputStream));
+        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,

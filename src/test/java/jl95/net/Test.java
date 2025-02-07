@@ -28,7 +28,7 @@ public class Test {
                     }
                     catch(Exception ex) {}
                 }));
-                new StringReceiver(uncheck(sock::getInputStream)).recv(System.out::println);
+                ReceiversCollection.getStringReceiver(uncheck(sock::getInputStream)).recv(System.out::println);
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -37,7 +37,7 @@ public class Test {
         var client = new java.net.Socket();
         client.connect(addr);
         while (!toStop) {
-             new StringSender(uncheck(client::getOutputStream)).send(format("Hello, at %s;", java.time.Instant.now()));
+             SendersCollection.getStringSender(uncheck(client::getOutputStream)).send(format("Hello, at %s;", java.time.Instant.now()));
              Thread.sleep(1000);
         }
         System.out.println("Done");
@@ -63,7 +63,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 var messagesSendIterator = messagesSend.iterator();
-                new StringReceiver(uncheck(sock::getInputStream)).recv(message -> {
+                ReceiversCollection.getStringReceiver(uncheck(sock::getInputStream)).recv(message -> {
                     charsReceivedNr[0] += message.length();
                     org.junit.Assert.assertTrue  (messagesSendIterator.hasNext());
                     org.junit.Assert.assertEquals(messagesSendIterator.next(), message);
@@ -76,7 +76,7 @@ public class Test {
         var client = new java.net.Socket();
         client.connect(addr);
         for (var message: messagesSend) {
-             new StringSender(uncheck(client::getOutputStream)).send(message);
+             SendersCollection.getStringSender(uncheck(client::getOutputStream)).send(message);
         }
         System.out.println("Exchanged a total of "+charsReceivedNr[0]+" characters");
         System.out.println("OK!");
