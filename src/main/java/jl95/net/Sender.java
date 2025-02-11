@@ -1,12 +1,17 @@
 package jl95.net;
 
-import static jl95.lang.SuperPowers.*;
-
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
 
 public abstract class Sender<T> {
+
+    public static class SerializationException extends RuntimeException {
+        public SerializationException(Exception ex) {super(ex);}
+    }
+    public static class SendException          extends RuntimeException {
+        public SendException(Exception ex) {super(ex);}
+    }
 
     private final OutputStream output;
 
@@ -17,17 +22,26 @@ public abstract class Sender<T> {
     }
 
     public final void         send           (T                outgoing) {
-        var outgoingAsBytes = toBytes(outgoing);
+        byte[] outgoingAsBytes;
+        try {
+            outgoingAsBytes = toBytes(outgoing);
+        }
+        catch (Exception ex) {
+            throw new SerializationException(ex);
+        }
         var size            = outgoingAsBytes.length;
         var sizeAsBytes     = java.math.BigInteger.valueOf(size).toByteArray();
-        uncheck(() -> {
+        try {
             output.write(sizeAsBytes.length);
             output.write(sizeAsBytes);
             output.write(outgoingAsBytes);
-        });
+        }
+        catch (Exception ex) {
+            throw new SendException(ex);
+        }
     }
     public final OutputStream getOutputStream() { return output; }
-    public final <T2> Sender<T2> extend(Function1<T, T2> adapterFunction) {
+    public final <T2> Sender<T2> adapted(Function1<T, T2> adapterFunction) {
 
         return new Sender<>(output) {
 

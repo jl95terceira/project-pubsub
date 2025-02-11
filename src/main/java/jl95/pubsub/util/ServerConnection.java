@@ -32,7 +32,7 @@ public class ServerConnection {
     public ServerConnection(Socket socket) {
         this.socket        = socket;
         this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
-        this.pubSender     = SendersCollection  .getJsonSender  (uncheck(socket::getOutputStream)).extend(SerdesDefaults.pubMsgToJson);
+        this.pubSender     = SendersCollection  .getJsonSender  (uncheck(socket::getOutputStream)).adapted(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

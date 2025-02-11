@@ -150,7 +150,7 @@ public abstract class Receiver<T> {
         return isReceiving;
     }
     public final InputStream       getInputStream() { return input; }
-    public final <T2> Receiver<T2> extend        (Function1<T2, T> adapterFunction) {
+    public final <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
 
         return new Receiver<>(input) {
 

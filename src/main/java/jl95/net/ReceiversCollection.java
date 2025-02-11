@@ -18,10 +18,10 @@ public class ReceiversCollection {
     }
     public static Receiver<String>    getStringReceiver(InputStream is) {
 
-        return getBytesReceiver(is).extend(SerdesDefaults.stringFromBytes);
+        return getBytesReceiver(is).adapted(SerdesDefaults.stringFromBytes);
     }
     public static Receiver<JsonValue> getJsonReceiver  (InputStream is) {
 
-        return getStringReceiver(is).extend(SerdesDefaults.jsonFromString);
+        return getStringReceiver(is).adapted(SerdesDefaults.jsonFromString);
     }
 }

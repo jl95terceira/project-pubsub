@@ -33,8 +33,8 @@ public abstract class Responder<A, R> {
     }
     public  Responder(Io io) {
 
-        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream ()).extend(SerdesDefaults.stringFromBytes).extend(SerdesDefaults.jsonFromString).extend(RequestJsonSerdes ::fromJson);
-        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream()).extend(SerdesDefaults.stringToBytes)  .extend(SerdesDefaults.jsonToString)  .extend(ResponseJsonSerdes::toJson);
+        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream ()).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
+        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream()).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
     }
 
     synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {

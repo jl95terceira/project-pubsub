@@ -66,12 +66,12 @@ public class Client {
                   Options           options) {
         this.socket = socket;
         var jsonSender = SendersCollection.getJsonSender(uncheck(socket::getOutputStream));
-        this.pubSender     = jsonSender.extend(SerdesDefaults.pubMsgToJson);
-        this.closeSender   = jsonSender.extend(SerdesDefaults.closeReqToJson);
-        this.subListSender = jsonSender.extend(SerdesDefaults.subListReqToJson);
-        this.subReSender   = jsonSender.extend(SerdesDefaults.subRegexReqToJson);
-        this.subAllSender  = jsonSender.extend(SerdesDefaults.subAllReqToJson);
-        this.subNoneSender = jsonSender.extend(SerdesDefaults.subNoneReqToJson);
+        this.pubSender     = jsonSender.adapted(SerdesDefaults.pubMsgToJson);
+        this.closeSender   = jsonSender.adapted(SerdesDefaults.closeReqToJson);
+        this.subListSender = jsonSender.adapted(SerdesDefaults.subListReqToJson);
+        this.subReSender   = jsonSender.adapted(SerdesDefaults.subRegexReqToJson);
+        this.subAllSender  = jsonSender.adapted(SerdesDefaults.subAllReqToJson);
+        this.subNoneSender = jsonSender.adapted(SerdesDefaults.subNoneReqToJson);
         this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(

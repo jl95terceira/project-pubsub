@@ -1,6 +1,5 @@
 package jl95.net;
 
-import java.io.InputStream;
 import java.io.OutputStream;
 
 import javax.json.JsonValue;
@@ -19,10 +18,10 @@ public class SendersCollection {
     }
     public static Sender<String>    getStringSender(OutputStream os) {
 
-        return getBytesSender(os).extend(SerdesDefaults.stringToBytes);
+        return getBytesSender(os).adapted(SerdesDefaults.stringToBytes);
     }
     public static Sender<JsonValue> getJsonSender  (OutputStream os) {
 
-        return getStringSender(os).extend(SerdesDefaults.jsonToString);
+        return getStringSender(os).adapted(SerdesDefaults.jsonToString);
     }
 }
