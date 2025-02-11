@@ -89,9 +89,9 @@ public class Client {
             }
         );
     }
-    public Client(Socket                socket,
+    public Client(Socket                clientSocket,
                   Options               options) {
-        this(CloseableIosSupplier.of(socket), options);
+        this(CloseableIosSupplier.of(clientSocket), options);
     }
     public Client(InetSocketAddress     serverAddr,
                   Options               options) {
