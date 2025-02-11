@@ -1,4 +1,4 @@
-package jl95.rpc.util;
+package jl95.net;
 
 import static jl95.lang.SuperPowers.*;
 
@@ -8,7 +8,6 @@ import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Method1;
-import jl95.net.IosSupplier;
 
 public interface CloseableIosSupplier extends IosSupplier {
 

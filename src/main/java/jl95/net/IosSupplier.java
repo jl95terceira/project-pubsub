@@ -13,7 +13,7 @@ public interface IosSupplier extends IsSupplier, OsSupplier {
     static IosSupplier of(InputStream             is,
                           OutputStream            os) { return of(() -> is, () -> os); }
     static IosSupplier of(Function0<InputStream>  isSupplier,
-                         Function0<OutputStream> osSupplier) {
+                          Function0<OutputStream> osSupplier) {
         return new IosSupplier() {
             @Override public InputStream  getInputStream () {
                 return isSupplier.apply();
@@ -22,9 +22,5 @@ public interface IosSupplier extends IsSupplier, OsSupplier {
                 return osSupplier.apply();
             }
         };
-    }
-    static IosSupplier of(Socket                  socket) {
-
-        return IosSupplier.of(unchecked(socket::getInputStream), unchecked(socket::getOutputStream));
     }
 }

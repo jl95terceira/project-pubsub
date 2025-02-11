@@ -31,8 +31,8 @@ public class ServerConnection {
 
     public ServerConnection(Socket socket) {
         this.socket        = socket;
-        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
-        this.pubSender     = SendersCollection  .getJsonSender  (uncheck(socket::getOutputStream)).adapted(SerdesDefaults.pubMsgToJson);
+        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(IosSuppliersCollection.getSocketIos(socket));
+        this.pubSender     = SendersCollection  .getJsonSender  (IosSuppliersCollection.getSocketIos(socket)).adapted(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

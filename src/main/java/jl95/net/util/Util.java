@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 
 public class Util {
 
@@ -18,5 +19,10 @@ public class Util {
     }
     public static ServerSocket getSimpleServerSocket(InetSocketAddress addr) {
         return getSimpleServerSocket(addr, Defaults.acceptTimeoutMs);
+    }
+    public static Socket       getConnectedSocket   (InetSocketAddress serverAddr) {
+        var socket = new Socket();
+        uncheck(() -> socket.connect(serverAddr));
+        return socket;
     }
 }

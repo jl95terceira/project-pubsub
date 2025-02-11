@@ -13,13 +13,11 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
-import jl95.net.IosSupplier;
-import jl95.net.IsSupplier;
-import jl95.net.OsSupplier;
 import jl95.net.Receiver;
 import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
 import jl95.net.SendersCollection;
+import jl95.net.util.Util;
 import jl95.pubsub.util.Message;
 import jl95.pubsub.protocol.Publication;
 import jl95.pubsub.protocol.Close;
@@ -31,15 +29,9 @@ import jl95.pubsub.util.serdes.MessageSwitchedDeserializer;
 import jl95.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.pubsub.util.MessageType;
 import jl95.pubsub.util.SerdesDefaults;
-import jl95.rpc.util.CloseableIosSupplier;
+import jl95.net.CloseableIosSupplier;
 
 public class Client {
-
-    private static Socket getConnectedSocket(InetSocketAddress serverAddr) {
-        var socket = new Socket();
-        uncheck(() -> socket.connect(serverAddr));
-        return socket;
-    }
 
     public interface    Options {
 
@@ -95,7 +87,7 @@ public class Client {
     }
     public Client(InetSocketAddress     serverAddr,
                   Options               options) {
-        this(getConnectedSocket(serverAddr), options);
+        this(Util.getConnectedSocket(serverAddr), options);
     }
 
     synchronized public final void            produce         (Publication          pub) {

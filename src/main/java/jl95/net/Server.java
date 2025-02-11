@@ -1,6 +1,7 @@
 package jl95.net;
 
 import static java.lang.String.*;
+import static jl95.lang.SuperPowers.ifNull;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
@@ -13,44 +14,29 @@ import jl95.lang.variadic.*;
 
 public class Server {
 
-    public interface Options {
-        void         onAccept       (Server self, Socket    clientSocket);
-        void         onAcceptError  (Server self, Exception ex);
-        void         onAcceptTimeout(Server self);
-
-        class Editable implements Options {
-
-            public Method2<Server, Socket>    acceptCb        = (server, socket) -> uncheck(() -> {
-                System.out.printf("Got new connection: %s\nConnection callback method is not overridden\nClose connection\n", socket);
-                socket.close();
-            });
-            public Method2<Server, Exception> acceptErrorCb   = (server, ex)     -> System.out.printf("Error on accept connection: %s%n", ex);;
-            public Method1<Server>            acceptTimeoutCb = (server)         -> {};
-
-            @Override public void onAccept       (Server self, Socket    clientSocket) { acceptCb       .call(self, clientSocket); }
-            @Override public void onAcceptError  (Server self, Exception ex)           { acceptErrorCb  .call(self, ex); }
-            @Override public void onAcceptTimeout(Server self)                         { acceptTimeoutCb.call(self); }
-        }
-        static Options defaults() { return new Editable(); }
-    }
-
     private final ServerSocket               serverSocket;
-    private final Method2<Server, Socket>    acceptCb;
-    private final Method2<Server, Exception> acceptErrorCb;
-    private final Method1<Server>            acceptTimeoutCb;
-    private final Object                     sync      = new Object();
+    private final Object                     sync = new Object();
+    private       Method2<Server, Socket>    acceptCb;
+    private       Method2<Server, Exception> acceptErrorCb;
+    private       Method1<Server>            acceptTimeoutCb;
     private       Boolean                    isRunning = false;
     private       Boolean                    toStop    = false;
     private       CompletableFuture<Void>    startFuture;
     private       CompletableFuture<Void>    stopFuture;
 
 
-    public Server(ServerSocket socket,
-                  Options      options) {
+    public Server(ServerSocket socket) {
         this.serverSocket    = socket;
-        this.acceptCb        = options::onAccept;
-        this.acceptErrorCb   = options::onAcceptError;
-        this.acceptTimeoutCb = options::onAcceptTimeout;
+    }
+
+    public final void setAcceptCb       (Method2<Server, Socket>    cb) {
+        acceptCb        = cb;
+    }
+    public final void setAcceptErrorCb  (Method2<Server, Exception> cb) {
+        acceptErrorCb   = cb;
+    }
+    public final void setAcceptTimeoutCb(Method1<Server>            cb) {
+        acceptTimeoutCb = cb;
     }
 
     synchronized public final Awaitable<Void> start    () {
@@ -68,14 +54,14 @@ public class Server {
                         socket = serverSocket.accept();
                     }
                     catch (java.net.SocketTimeoutException ex) /* not really an error - just to give control back to the thread every so often */ {
-                        acceptTimeoutCb.call(this);
+                        ifNull(acceptTimeoutCb, (self) -> {}).accept(this);
                         continue;
                     }
                     catch (Exception ex) {
-                        acceptErrorCb.call(this, ex);
+                        ifNull(acceptErrorCb, (self, ex_) -> { System.out.printf("Error on accept: %s\n", ex_); }).accept(this, ex);
                         continue;
                     }
-                    acceptCb.call(this, socket);
+                    ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket);
                 }
                 catch (Exception ex) /* happened in non-final (overridable) methods */ {
                     ex.printStackTrace();

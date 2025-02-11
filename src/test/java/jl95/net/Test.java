@@ -1,6 +1,5 @@
 package jl95.net;
 
-import static java.lang.String.*;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
@@ -32,15 +31,15 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiversCollection.getStringReceiver(uncheck(sock::getInputStream)));
+                receiverFuture.complete(ReceiversCollection.getStringReceiver(IosSuppliersCollection.getSocketIos(sock)));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
         }).start();
-        var client = new java.net.Socket();
-        client.connect(addr);
-        sender   = SendersCollection.getStringSender(uncheck(client::getOutputStream));
+        var clientSocket = new java.net.Socket();
+        clientSocket.connect(addr);
+        sender   = SendersCollection.getStringSender(IosSuppliersCollection.getSocketIos(clientSocket));
         receiver = receiverFuture.get();
     }
     @org.junit.After

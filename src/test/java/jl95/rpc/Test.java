@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.*;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.rpc.util.Defaults;
-import jl95.rpc.util.CloseableIosSupplier;
+import jl95.net.CloseableIosSupplier;
 import jl95.rpc.util.Util;
 
 public class Test {
