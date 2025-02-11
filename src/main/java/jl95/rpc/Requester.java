@@ -1,24 +1,28 @@
 package jl95.rpc;
 
+import static jl95.lang.SuperPowers.constant;
 import static jl95.lang.SuperPowers.uncheck;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import jl95.lang.variadic.*;
 import jl95.net.Io;
 import jl95.net.Receiver;
 import jl95.net.Sender;
+import jl95.rpc.util.Defaults;
 import jl95.rpc.util.Request;
 import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
-public abstract class Requester<A, R> implements RequesterIf<A, R> {
+public abstract class Requester<A, R> implements RequesterFunction<A, R> {
 
     private enum         ResponseExceptionalStatus {
-        FAIL_UNSYNCHRONIZED,
         FAIL_TIMEOUT;
     }
     private static class ResponseStatusAndData {
@@ -26,22 +30,24 @@ public abstract class Requester<A, R> implements RequesterIf<A, R> {
         public Response response;
     }
 
-    public interface SendOptions {
+    public interface SendOptions<A, R> {
 
-        Integer getResponseTimeoutMs();
+        Integer getResponseTimeoutMs(Requester<A, R> self);
+        void    onOutOfSync         (Requester<A, R> self);
 
-        class Editable implements SendOptions {
+        class Editable<A, R> implements SendOptions<A, R> {
 
-            public Integer responseTimeoutMs = jl95.rpc.util.Defaults.responseTimeoutMs;
+            public Function1<Integer, Requester<A, R>> responseTimeoutMs = self -> Defaults.responseTimeoutMs;
+            public Method1           <Requester<A, R>> outOfSyncHandler  = self -> {};
 
-            @Override public Integer getResponseTimeoutMs() { return responseTimeoutMs; }
+            @Override public Integer getResponseTimeoutMs(Requester<A, R> self) { return responseTimeoutMs.apply (self); }
+            @Override public void    onOutOfSync         (Requester<A, R> self) { outOfSyncHandler        .accept(self); }
         }
-        static SendOptions defaults() {
-            return new Editable();
+        static <A, R> SendOptions<A, R> defaults() {
+            return new Editable<>();
         }
     }
     public static class ResponseTimeoutException extends RuntimeException {}
-    public static class ResponseDesynchException extends RuntimeException {}
 
     private final Sender  <Request>        sender;
     private final Receiver<Response>       receiver;
@@ -50,7 +56,9 @@ public abstract class Requester<A, R> implements RequesterIf<A, R> {
     protected abstract byte[] writeRequest(A      object);
     protected abstract R      readResponse(byte[] serial);
 
-    public Requester(Io      io) {
+    private Requester(Sender  <Request>  sender,
+                      Receiver<Response> receiver) {this.sender = sender; this.receiver = receiver;}
+    public  Requester(Io      io) {
 
         this.sender   = new Sender  <>(io.getOutputStream()) {
             @Override protected byte[] toBytes(Request outgoing) {
@@ -64,7 +72,7 @@ public abstract class Requester<A, R> implements RequesterIf<A, R> {
         };
     }
 
-    @Override synchronized public final R apply(A requestObject, SendOptions options) {
+    @Override synchronized public final R apply(A requestObject, SendOptions<A, R> options) {
 
         var request     = new Request();
         request.id      = UUID.randomUUID();
@@ -74,35 +82,56 @@ public abstract class Requester<A, R> implements RequesterIf<A, R> {
         var responseFuture = new CompletableFuture<ResponseStatusAndData>();
         receiver.recvWhile(response -> {
             synchronized (responseSync) {
-                if (responseFuture.isDone()) /* oof, just timed out */ return false;
-                var rsd = new ResponseStatusAndData();
-                if (!response.requestId.equals(request.id)) {
-                    rsd.status = ResponseExceptionalStatus.FAIL_UNSYNCHRONIZED;
+                try {
+                    if (responseFuture.isDone()) /* oof, just timed out */ {
+                        return false;
+                    }
+                    var rsd = new ResponseStatusAndData();
+                    if (!response.requestId.equals(request.id)) {
+                        options.onOutOfSync(this);
+                        return true; // discard response (old, out of sync), wait for next
+                    }
+                    else {
+                        rsd.response = response;
+                    }
+                    responseFuture.complete(rsd);
+                    return false;
                 }
-                else {
-                    rsd.response = response;
+                catch (Exception ex) {
+                    return false;
                 }
-                responseFuture.complete(rsd);
-                return false;
             }
         });
         scheduler.schedule(() -> {
             synchronized (responseSync) {
                 if (responseFuture.isDone()) return;
                 // not completed - set failed (by time-out)
+                receiver.recvStop().await();
                 var rsd = new ResponseStatusAndData();
                 rsd.status = ResponseExceptionalStatus.FAIL_TIMEOUT;
                 responseFuture.complete(rsd);
             }
-        }, options.getResponseTimeoutMs(), TimeUnit.MILLISECONDS);
+        }, options.getResponseTimeoutMs(this), TimeUnit.MILLISECONDS);
         var rsd = uncheck(() -> responseFuture.get());
         if (rsd.status == ResponseExceptionalStatus.FAIL_TIMEOUT) {
             throw new ResponseTimeoutException();
         }
-        if (rsd.status == ResponseExceptionalStatus.FAIL_UNSYNCHRONIZED) {
-            throw new ResponseDesynchException();
-        }
-        var responseObject = readResponse(rsd.response.payload);
-        return responseObject;
+        return readResponse(rsd.response.payload);
     }
+    @Override synchronized public final R apply(A requestObject) { return apply(requestObject, SendOptions.defaults()); }
+
+    public final <A2, R2> Requester<A2, R2> adapted(Function1<A, A2> argAdapter,
+                                                    Function1<R2, R> reAdapter) {
+        return new Requester<A2, R2>(sender, receiver) {
+
+            @Override protected byte[] writeRequest(A2 object) {
+                return Requester.this.writeRequest(argAdapter.apply(object));
+            }
+            @Override protected R2 readResponse(byte[] serial) {
+                return reAdapter.apply(Requester.this.readResponse(serial));
+            }
+        };
+    }
+    public final          InputStream       getInputStream () { return receiver.getInputStream (); }
+    public final          OutputStream      getOutputStream() { return sender  .getOutputStream(); }
 }

@@ -9,55 +9,69 @@ import jl95.net.Receiver;
 import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
 import jl95.net.SendersCollection;
-import jl95.rpc.serdes.ResponseJsonSerdes;
-import jl95.rpc.serdes.RequestJsonSerdes;
+import jl95.rpc.util.Request;
+import jl95.rpc.util.serdes.ResponseJsonSerdes;
+import jl95.rpc.util.serdes.RequestJsonSerdes;
 import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
-public abstract class Responder<A, R> implements ResponderIf<A, R> {
+public abstract class Responder<A, R> {
 
     public static class StartWhenAlreadyRunningException extends RuntimeException {}
     public static class StopWhenNotRunningException      extends RuntimeException {}
 
-    private final Receiver<byte[]> receiver;
-    private final Sender  <byte[]> sender;
+    private final Receiver<Request>  receiver;
+    private final Sender  <Response> sender;
 
     protected abstract A      readRequest  (byte[] serial);
     protected abstract byte[] writeResponse(R      object);
 
-    public Responder(Io io) {
+    private Responder(Receiver<Request>  receiver,
+                      Sender  <Response> sender) {
+        this.receiver = receiver;
+        this.sender   = sender;
+    }
+    public  Responder(Io io) {
 
-        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream());
-        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream());
+        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream ()).extend(SerdesDefaults.stringFromBytes).extend(SerdesDefaults.jsonFromString).extend(RequestJsonSerdes ::fromJson);
+        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream()).extend(SerdesDefaults.stringToBytes)  .extend(SerdesDefaults.jsonToString)  .extend(ResponseJsonSerdes::toJson);
     }
 
-    @Override synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {
+    synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {
 
         if (isRunning()) throw new StartWhenAlreadyRunningException();
-        return receiver.recvWhile(serial -> {
+        return receiver.recvWhile(request -> {
 
-            var request = RequestJsonSerdes.fromJson
-                         (SerdesDefaults   .jsonFromString .call
-                         (SerdesDefaults   .stringFromBytes.call(serial)));
             var requestPayloadObject = readRequest(request.payload);
-            var responsePayloadObject   = responseFunction.call(requestPayloadObject);
+            var responsePayloadObject   = responseFunction.apply(requestPayloadObject);
             var response       = new Response();
             response.id        = UUID.randomUUID();
             response.requestId = request.id;
             response.payload   = writeResponse(responsePayloadObject);
-            sender.send(SerdesDefaults .stringToBytes.call
-                       (SerdesDefaults .jsonToString .call
-                       (ResponseJsonSerdes.toJson(response))));
+            sender.send(response);
             return true;
         });
     }
-    @Override synchronized public Awaitable<Void> stop     () {
+    synchronized public Awaitable<Void> stop     () {
 
         if (!isRunning()) throw new StopWhenNotRunningException();
         return receiver.recvStop();
     }
-    @Override synchronized public Boolean         isRunning() {
+    synchronized public Boolean         isRunning() {
 
         return receiver.isReceiving();
     }
+    public final <A2, R2> Responder<A2, R2> adapted(Function1<A2, A> argAdapter,
+                                                    Function1<R, R2> reAdapter) {
+        return new Responder<A2, R2>(receiver, sender) {
+
+            @Override protected A2     readRequest  (byte[] serial) {
+                return argAdapter.apply(Responder.this.readRequest(serial));
+            }
+            @Override protected byte[] writeResponse(R2     object) {
+                return Responder.this.writeResponse(reAdapter.apply(object));
+            }
+        };
+    }
+
 }

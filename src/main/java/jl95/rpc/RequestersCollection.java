@@ -7,7 +7,7 @@ import jl95.rpc.util.SerdesDefaults;
 
 public class RequestersCollection {
 
-    public static RequesterIf<byte[],    byte[]>    getBytesRequester (Io io) {
+    public static Requester<byte[],    byte[]>    getBytesRequester (Io io) {
 
         return new Requester<>(io) {
 
@@ -17,14 +17,14 @@ public class RequestersCollection {
             @Override protected byte[] readResponse(byte[] serial) { return serial; }
         };
     }
-    public static RequesterIf<String,    String>    getStringRequester(Io io) {
+    public static Requester<String,    String>    getStringRequester(Io io) {
 
         return getBytesRequester(io).adapted(
             SerdesDefaults.stringToBytes,
             SerdesDefaults.stringFromBytes
         );
     }
-    public static RequesterIf<JsonValue, JsonValue> getJsonRequester  (Io io) {
+    public static Requester<JsonValue, JsonValue> getJsonRequester  (Io io) {
 
         return getStringRequester(io).adapted(
             SerdesDefaults.jsonToString,

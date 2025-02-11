@@ -5,9 +5,9 @@ import static jl95.lang.SuperPowers.constant;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 import static java.lang.String.*;
+import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.uncheck;
 
 import jl95.lang.*;
@@ -17,30 +17,36 @@ public abstract class Receiver<T> {
 
     public interface RecvOptions<T> {
 
-        void afterStop          (Receiver<T> receiver);
-        void onException        (Receiver<T> receiver, Exception   ex);
-        void onIoException      (Receiver<T> receiver, IOException ex);
-        void onProtocolException(Receiver<T> receiver, Exception   ex);
+        void    afterStop          (Receiver<T> self);
+        void    onException        (Receiver<T> self, Exception   ex);
+        void    onIoException      (Receiver<T> self, IOException ex);
+        void    onProtocolException(Receiver<T> self, Exception   ex);
+        void    onInputTimeout     (Receiver<T> self);
+        Integer inputRetryTimeoutMs();
 
         class Editable<T> implements RecvOptions<T> {
 
-            public Method1<Receiver<T>>              afterStop          = (self) -> {};
-            public Method2<Receiver<T>, Exception>   excHandler         = (self, ex) -> System.out.println(format("Error while handling incoming: %s", ex));
-            public Method2<Receiver<T>, IOException> ioExcHandler       = (self, ex) -> System.out.println(format("Error while reading incoming: %s", ex));
-            public Method2<Receiver<T>, Exception>   protocolExcHandler = (self, ex) -> System.out.println(format("Error while deserializing incoming: %s", ex));
+            public Method1<Receiver<T>>              afterStop           = (self) -> {};
+            public Method2<Receiver<T>, Exception>   excHandler          = (self, ex) -> System.out.println(format("Error while handling incoming: %s", ex));
+            public Method2<Receiver<T>, IOException> ioExcHandler        = (self, ex) -> System.out.println(format("Error while reading incoming: %s", ex));
+            public Method2<Receiver<T>, Exception>   protocolExcHandler  = (self, ex) -> System.out.println(format("Error while deserializing incoming: %s", ex));
+            public Method1<Receiver<T>>              inputTimeoutHandler = (self) ->  {};
+            public Function0<Integer>                inputRetryTimeoutMs = constant(50);
 
             @Override public void afterStop          (Receiver<T> self) { afterStop.call(self); }
             @Override public void onException        (Receiver<T> self, Exception   ex) { excHandler        .call(self, ex); }
             @Override public void onIoException      (Receiver<T> self, IOException ex) { ioExcHandler      .call(self, ex); }
             @Override public void onProtocolException(Receiver<T> self, Exception   ex) { protocolExcHandler.call(self, ex); }
+            @Override public void onInputTimeout     (Receiver<T> self) { inputTimeoutHandler.accept(self); }
+            @Override public Integer inputRetryTimeoutMs() { return inputRetryTimeoutMs.apply(); }
         }
         static <T> RecvOptions<T> defaults() {
             return new Editable<>();
         }
     }
 
-    public static class StartWhenAlreadyOnException extends RuntimeException {}
-    public static class StopWhenNotOnException      extends RuntimeException {}
+    public static class AlreadyReceivingException extends RuntimeException {}
+    public static class NotYetReceivingException  extends RuntimeException {}
 
     private final InputStream             input;
     private       Boolean                 isReceiving = false;
@@ -57,19 +63,27 @@ public abstract class Receiver<T> {
     synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue,
                                                             RecvOptions<T>        options) {
         if (isReceiving) {
-            throw new StartWhenAlreadyOnException();
+            throw new AlreadyReceivingException();
         }
         toStop      = false;
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
+        isReceiving = true;
         new Thread(() -> {
             startFuture.complete(null);
             while (!toStop) {
                 byte[] incomingAsBytes;
                 try {
                     try {
+                        if (input.available() == 0) {
+                            options.onInputTimeout(this);
+                            sleep(options.inputRetryTimeoutMs());
+                            continue;
+                        }
                         var sizeSize        = input.read();
                         if (sizeSize == -1) {
+                            options.onInputTimeout(this);
+                            sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
                         var sizeAsBytes     = new byte[sizeSize];
@@ -89,7 +103,7 @@ public abstract class Receiver<T> {
                     try {
                         var toContinue = incomingCbToContinue.apply(fromBytes(incomingAsBytes));
                         if (!toContinue) {
-                            recvStop();
+                            toStop = true;
                         }
                     }
                     catch (Exception ex) {
@@ -103,11 +117,9 @@ public abstract class Receiver<T> {
                 }
             }
             isReceiving = false;
-            assert stopFuture != null;
             stopFuture.complete(null);
             options.afterStop(this);
         }).start();
-        isReceiving = true;
         return Awaitable.of(startFuture);
     }
     synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
@@ -128,10 +140,9 @@ public abstract class Receiver<T> {
     synchronized public final Awaitable<Void> recvStop     () {
 
         if (!isReceiving) {
-            throw new StopWhenNotOnException();
+            throw new NotYetReceivingException();
         }
         toStop = true; // to be checked in loop, after which the future above will be completed
-        assert stopFuture != null;
         return Awaitable.of(stopFuture);
     }
 

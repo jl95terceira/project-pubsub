@@ -17,14 +17,14 @@ public class RespondersCollection {
                     }
         };
     }
-    public static ResponderIf<String,    String>    getStringResponser(Io io) {
+    public static Responder<String,    String> getStringResponser(Io io) {
 
         return getBytesResponder(io).adapted(
             SerdesDefaults.stringFromBytes,
             SerdesDefaults.stringToBytes
         );
     }
-    public static ResponderIf<JsonValue, JsonValue> getJsonResponser  (Io io) {
+    public static Responder<JsonValue, JsonValue> getJsonResponser  (Io io) {
 
         return getStringResponser(io).adapted(
             SerdesDefaults.jsonFromString,

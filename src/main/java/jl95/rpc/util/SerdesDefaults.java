@@ -5,8 +5,8 @@ import java.util.Base64;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.Function1;
-import jl95.rpc.serdes.RequestJsonSerdes;
-import jl95.rpc.serdes.ResponseJsonSerdes;
+import jl95.rpc.util.serdes.RequestJsonSerdes;
+import jl95.rpc.util.serdes.ResponseJsonSerdes;
 import jl95.serdes.JsonFromString;
 import jl95.serdes.JsonToString;
 import jl95.serdes.StringFromJson;

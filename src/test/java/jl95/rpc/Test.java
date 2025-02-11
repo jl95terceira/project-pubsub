@@ -12,12 +12,11 @@ public class Test {
 
     CloseableIo ioAsServer;
     CloseableIo ioAsClient;
-    RequesterIf<String, String> requester;
-    ResponderIf<String, String> responder;
+    Requester<String, String> requester;
+    Responder<String, String> responder;
 
     @org.junit.Before
     public void setUp() throws Exception {
-        System.out.println("Setup");
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.util.Defaults.serverAddr);
             return RequestersCollection.getStringRequester(ioAsServer);
@@ -32,13 +31,18 @@ public class Test {
     }
     @org.junit.After
     public void tearDown() {
-        System.out.println("Teardown");
+        if (responder.isRunning()) responder.stop().await();
         if (ioAsClient != null) ioAsClient.close();
-        System.out.println("Client closed");
         if (ioAsServer != null) ioAsServer.close();
-        System.out.println("Server closed");
     }
 
+    @org.junit.Test
+    public void testStartStop() {
+        responder.start(self::apply).await();
+        responder.stop ()           .await();
+        responder.start(self::apply).await();
+        responder.stop ()           .await();
+    }
     @org.junit.Test
     public void test() {
         responder.start(msg -> "hello, " + msg).await();
@@ -51,17 +55,20 @@ public class Test {
     }
     @org.junit.Test
     public void testTimeout() {
+        responder.start(self::apply).await();
+        org.junit.Assert.assertEquals("first", requester.apply("first"));
+        responder.stop().await();
         responder.start(msg -> {
             sleep(Defaults.responseTimeoutMs + 1000);
             return "";
-        });
+        }).await();
         try {
-            requester.apply("whatever");
+            requester.apply("second (to time out)");
             org.junit.Assert.fail("response timeout exception must be raised");
         }
         catch (Requester.ResponseTimeoutException ex) {/* as expected */}
         responder.stop ()           .await();
         responder.start(self::apply).await();
-        org.junit.Assert.assertEquals("test", requester.apply("test"));
+        org.junit.Assert.assertEquals("third", requester.apply("third"));
     }
 }
