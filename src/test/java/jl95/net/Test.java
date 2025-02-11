@@ -59,9 +59,11 @@ public class Test {
     }
     @org.junit.Test public void test() {
 
-        List<String> messagesSend = new ArrayList<>(1000);
-        for (int i = 0; i < 1000; i++) {
-            messagesSend.add(UUID.randomUUID().toString().repeat(10));
+        var N = 1000; // nr of messages
+        var R = 10;  // size of each message = R * size of a UUID
+        List<String> messagesSend = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            messagesSend.add(UUID.randomUUID().toString().repeat(R));
         }
         System.out.printf("Testing send-receive (through localhost) for %s messages\n", messagesSend.size());
         int[] charsReceivedNr = { 0 };
