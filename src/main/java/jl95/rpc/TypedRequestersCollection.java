@@ -2,14 +2,14 @@ package jl95.rpc;
 
 import javax.json.JsonValue;
 
-import jl95.net.Io;
+import jl95.net.IosSupplier;
 import jl95.rpc.util.SerdesDefaults;
 
 public class TypedRequestersCollection {
 
     private TypedRequestersCollection() {}
 
-    public static TypedRequester<byte[],    byte[]>    getBytesRequester (Io io) {
+    public static TypedRequester<byte[],    byte[]>    getBytesRequester (IosSupplier io) {
         return new TypedRequester<>(io) {
 
             @Override protected byte[] toBytes(byte[] requestBase) {
@@ -20,10 +20,10 @@ public class TypedRequestersCollection {
             }
         };
     }
-    public static TypedRequester<String,    String>    getStringRequester(Io io) {
+    public static TypedRequester<String,    String>    getStringRequester(IosSupplier io) {
         return getBytesRequester(io).adapted(SerdesDefaults.stringToBytes, SerdesDefaults.stringFromBytes);
     }
-    public static TypedRequester<JsonValue, JsonValue> getJsonRequester  (Io io) {
+    public static TypedRequester<JsonValue, JsonValue> getJsonRequester  (IosSupplier io) {
         return getStringRequester(io).adapted(SerdesDefaults.jsonToString, SerdesDefaults.jsonFromString);
     }
 }

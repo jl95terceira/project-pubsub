@@ -1,12 +1,12 @@
 package jl95.rpc.alt;
 
-import jl95.net.Io;
+import jl95.net.IosSupplier;
 import jl95.rpc.Requester;
 import jl95.rpc.util.SerdesDefaults;
 
 public abstract class RequesterByString<A, R> extends Requester<A, R> {
 
-    public RequesterByString(Io io) {super(io);}
+    public RequesterByString(IosSupplier io) {super(io);}
 
     protected abstract String writeRequestString(A      object);
     protected abstract R      readResponseString(String serial);

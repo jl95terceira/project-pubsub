@@ -13,6 +13,9 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
+import jl95.net.IosSupplier;
+import jl95.net.IsSupplier;
+import jl95.net.OsSupplier;
 import jl95.net.Receiver;
 import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
@@ -28,6 +31,7 @@ import jl95.pubsub.util.serdes.MessageSwitchedDeserializer;
 import jl95.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.pubsub.util.MessageType;
 import jl95.pubsub.util.SerdesDefaults;
+import jl95.rpc.util.CloseableIosSupplier;
 
 public class Client {
 
@@ -39,12 +43,14 @@ public class Client {
 
     public interface    Options {
 
+        /* no methods yet but soon to have */
+
         class Editable implements Options {
     }
         static Options defaults() {return new Editable();}
     }
 
-    private final Socket                                socket;
+    private final Method0                               closer;
     private final Sender<Message<Publication>>          pubSender;
     private final Sender<Message<Close>>                closeSender;
     private final Sender<Message<SubscriptionByList>>   subListSender;
@@ -62,17 +68,17 @@ public class Client {
         sender.send(msg);
     }
 
-    public Client(Socket            socket,
-                  Options           options) {
-        this.socket = socket;
-        var jsonSender = SendersCollection.getJsonSender(uncheck(socket::getOutputStream));
+    public Client(CloseableIosSupplier  iosSupplier,
+                  Options               options) {
+        this.closer = unchecked(iosSupplier::close);
+        var jsonSender = SendersCollection.getJsonSender(iosSupplier);
         this.pubSender     = jsonSender.adapted(SerdesDefaults.pubMsgToJson);
         this.closeSender   = jsonSender.adapted(SerdesDefaults.closeReqToJson);
         this.subListSender = jsonSender.adapted(SerdesDefaults.subListReqToJson);
         this.subReSender   = jsonSender.adapted(SerdesDefaults.subRegexReqToJson);
         this.subAllSender  = jsonSender.adapted(SerdesDefaults.subAllReqToJson);
         this.subNoneSender = jsonSender.adapted(SerdesDefaults.subNoneReqToJson);
-        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(uncheck(socket::getInputStream));
+        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(iosSupplier);
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,
@@ -83,8 +89,12 @@ public class Client {
             }
         );
     }
-    public Client(InetSocketAddress serverAddr,
-                  Options           options) {
+    public Client(Socket                socket,
+                  Options               options) {
+        this(CloseableIosSupplier.of(socket), options);
+    }
+    public Client(InetSocketAddress     serverAddr,
+                  Options               options) {
         this(getConnectedSocket(serverAddr), options);
     }
 
@@ -129,7 +139,7 @@ public class Client {
     public final void close           () {
 
         sendMessage(new Close(), closeSender);
-        uncheck(socket::close);
+        closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
         subscribeByList(sub.topicNames);

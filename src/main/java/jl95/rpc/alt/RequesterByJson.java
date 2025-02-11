@@ -2,13 +2,13 @@ package jl95.rpc.alt;
 
 import javax.json.JsonValue;
 
-import jl95.net.Io;
+import jl95.net.IosSupplier;
 import jl95.rpc.Requester;
 import jl95.rpc.util.SerdesDefaults;
 
 public abstract class RequesterByJson<A, R> extends Requester<A, R> {
 
-    public RequesterByJson(Io io) {super(io);}
+    public RequesterByJson(IosSupplier io) {super(io);}
 
     protected abstract JsonValue writeRequestJson(A         object);
     protected abstract R         readResponseJson(JsonValue serial);

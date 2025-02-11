@@ -10,17 +10,17 @@ public class SendersCollection {
 
     private SendersCollection() {}
 
-    public static Sender<byte[]>    getBytesSender (OutputStream os) {
+    public static Sender<byte[]>    getBytesSender (OsSupplier os) {
 
         return new Sender<>(os) {
                 @Override protected byte[] toBytes(byte[] bytes)  { return bytes; }
         };
     }
-    public static Sender<String>    getStringSender(OutputStream os) {
+    public static Sender<String>    getStringSender(OsSupplier os) {
 
         return getBytesSender(os).adapted(SerdesDefaults.stringToBytes);
     }
-    public static Sender<JsonValue> getJsonSender  (OutputStream os) {
+    public static Sender<JsonValue> getJsonSender  (OsSupplier os) {
 
         return getStringSender(os).adapted(SerdesDefaults.jsonToString);
     }

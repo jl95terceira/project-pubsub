@@ -5,13 +5,13 @@ import static jl95.lang.SuperPowers.*;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.rpc.util.Defaults;
-import jl95.rpc.util.CloseableIo;
+import jl95.rpc.util.CloseableIosSupplier;
 import jl95.rpc.util.Util;
 
 public class Test {
 
-    CloseableIo ioAsServer;
-    CloseableIo ioAsClient;
+    CloseableIosSupplier ioAsServer;
+    CloseableIosSupplier ioAsClient;
     Requester<String, String> requester;
     Responder<String, String> responder;
 

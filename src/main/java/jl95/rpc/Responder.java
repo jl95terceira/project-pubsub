@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
-import jl95.net.Io;
+import jl95.net.IosSupplier;
 import jl95.net.Receiver;
 import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
@@ -31,10 +31,10 @@ public abstract class Responder<A, R> {
         this.receiver = receiver;
         this.sender   = sender;
     }
-    public  Responder(Io io) {
+    public  Responder(IosSupplier io) {
 
-        this.receiver = ReceiversCollection.getBytesReceiver(io.getInputStream ()).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
-        this.sender   = SendersCollection  .getBytesSender  (io.getOutputStream()).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
+        this.receiver = ReceiversCollection.getBytesReceiver(io).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
+        this.sender   = SendersCollection  .getBytesSender  (io).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
     }
 
     synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {

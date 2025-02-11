@@ -16,8 +16,8 @@ import jl95.net.util.Defaults;
 
 public class Util {
 
-        public static CloseableIo getIoFromSocket(Socket            socket) {
-            return new CloseableIo() {
+        public static CloseableIosSupplier getIoFromSocket(Socket            socket) {
+            return new CloseableIosSupplier() {
                 @Override public InputStream getInputStream() { return uncheck(socket::getInputStream); }
                 @Override public OutputStream getOutputStream() { return uncheck(socket::getOutputStream); }
                 @Override public void         close () {
@@ -27,12 +27,12 @@ public class Util {
                 }
             };
         }
-        public static CloseableIo getIoAsClient  (InetSocketAddress addr) {
+        public static CloseableIosSupplier getIoAsClient  (InetSocketAddress addr) {
             var socket = new Socket();
             uncheck(() -> socket.connect(addr));
             return getIoFromSocket(socket);
         }
-        public static CloseableIo getIoAsServer  (InetSocketAddress addr,
+        public static CloseableIosSupplier getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
             var serverOptions = new Server.Options.Editable();
             var clientSocketFuture = new CompletableFuture<Socket>();
@@ -48,5 +48,5 @@ public class Util {
             uncheck(server.getSocket()::close); // release bind address
             return getIoFromSocket(clientSocket);
         }
-        public static CloseableIo getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
+        public static CloseableIosSupplier getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
 }

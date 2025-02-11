@@ -5,13 +5,13 @@ import static jl95.lang.SuperPowers.sleep;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.rpc.util.CloseableIo;
+import jl95.rpc.util.CloseableIosSupplier;
 import jl95.rpc.util.Util;
 
 public class TestTypeSwitched {
 
-    CloseableIo ioAsServer;
-    CloseableIo ioAsClient;
+    CloseableIosSupplier ioAsServer;
+    CloseableIosSupplier ioAsClient;
     TypedRequester       <String, String> requester;
     TypeSwitchedResponder<String, String> responder;
 

@@ -48,7 +48,7 @@ public abstract class Receiver<T> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotYetReceivingException  extends RuntimeException {}
 
-    private final InputStream             input;
+    private final IsSupplier              isSupplier;
     private       Boolean                 isReceiving = false;
     private       Boolean                 toStop      = false;
     private       CompletableFuture<Void> startFuture;
@@ -56,8 +56,11 @@ public abstract class Receiver<T> {
 
     protected abstract T fromBytes(byte[] incoming);
 
-    public Receiver(InputStream input) {
-        this.input = input;
+    public Receiver(IsSupplier  isSupplier) {
+        this.isSupplier = isSupplier;
+    }
+    public Receiver(InputStream is) {
+        this(IsSupplier.of(is));
     }
 
     synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue,
@@ -75,22 +78,23 @@ public abstract class Receiver<T> {
                 byte[] incomingAsBytes;
                 try {
                     try {
-                        if (input.available() == 0) {
+                        var inputStream = isSupplier.getInputStream();
+                        if (inputStream.available() == 0) {
                             options.onInputTimeout(this);
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
-                        var sizeSize        = input.read();
+                        var sizeSize        = inputStream.read();
                         if (sizeSize == -1) {
                             options.onInputTimeout(this);
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
                         var sizeAsBytes     = new byte[sizeSize];
-                        input.read(sizeAsBytes, 0, sizeSize);
+                        inputStream.read(sizeAsBytes, 0, sizeSize);
                         var size            = new java.math.BigInteger(sizeAsBytes).intValue();
                         incomingAsBytes     = new byte[size];
-                        input.read(incomingAsBytes, 0, size);
+                        inputStream.read(incomingAsBytes, 0, size);
                     }
                     catch (IOException ex) {
                         options.onIoException(this, ex);
@@ -149,10 +153,10 @@ public abstract class Receiver<T> {
     public final Boolean           isReceiving   () {
         return isReceiving;
     }
-    public final InputStream       getInputStream() { return input; }
+    public final InputStream       getInputStream() { return isSupplier.getInputStream(); }
     public final <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
 
-        return new Receiver<>(input) {
+        return new Receiver<>(isSupplier) {
 
             @Override protected T2 fromBytes(byte[] incoming) {
                 return adapterFunction.call(Receiver.this.fromBytes(incoming));
