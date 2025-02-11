@@ -20,7 +20,7 @@ import jl95.rpc.util.Request;
 import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
-public abstract class Requester<A, R> implements RequesterFunction<A, R> {
+public abstract class Requester<A, R> {
 
     private enum         ResponseExceptionalStatus {
         FAIL_TIMEOUT;
@@ -72,7 +72,7 @@ public abstract class Requester<A, R> implements RequesterFunction<A, R> {
         };
     }
 
-    @Override synchronized public final R apply(A requestObject, SendOptions<A, R> options) {
+    synchronized public final R apply(A requestObject, SendOptions<A, R> options) {
 
         var request     = new Request();
         request.id      = UUID.randomUUID();
@@ -118,7 +118,7 @@ public abstract class Requester<A, R> implements RequesterFunction<A, R> {
         }
         return readResponse(rsd.response.payload);
     }
-    @Override synchronized public final R apply(A requestObject) { return apply(requestObject, SendOptions.defaults()); }
+    synchronized public final R apply(A requestObject) { return apply(requestObject, SendOptions.defaults()); }
 
     public final <A2, R2> Requester<A2, R2> adapted(Function1<A, A2> argAdapter,
                                                     Function1<R2, R> reAdapter) {
