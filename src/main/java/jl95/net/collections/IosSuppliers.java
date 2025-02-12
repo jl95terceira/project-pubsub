@@ -6,7 +6,7 @@ import java.net.Socket;
 
 import jl95.net.IosSupplier;
 
-public class IosSuppliersCollection {
+public class IosSuppliers {
 
     public static IosSupplier getSocketIos(Socket socket) {
 

@@ -6,7 +6,7 @@ import java.net.Socket;
 
 import jl95.net.OsSupplier;
 
-public class OsSuppliersCollections {
+public class OsSuppliers {
 
     static OsSupplier getSockeOs(Socket socket) {
 

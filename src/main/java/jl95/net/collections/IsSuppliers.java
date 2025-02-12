@@ -6,7 +6,7 @@ import java.net.Socket;
 
 import jl95.net.IsSupplier;
 
-public class IsSuppliersCollection {
+public class IsSuppliers {
 
     static IsSupplier getSocketIs(Socket socket) {
 

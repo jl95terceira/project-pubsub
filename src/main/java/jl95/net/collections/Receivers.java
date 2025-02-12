@@ -6,9 +6,9 @@ import jl95.net.IsSupplier;
 import jl95.net.Receiver;
 import jl95.pubsub.util.SerdesDefaults;
 
-public class ReceiversCollection {
+public class Receivers {
 
-    private ReceiversCollection() {}
+    private Receivers() {}
 
     public static Receiver<byte[]> getBytesReceiver (IsSupplier is) {
 

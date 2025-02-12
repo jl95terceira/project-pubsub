@@ -2,13 +2,11 @@ package jl95.net;
 
 import static jl95.lang.SuperPowers.*;
 
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 
 import jl95.lang.variadic.*;
 
-public class CloseableIosSuppliersCollection {
+public class CloseableIosSuppliers {
 
     private static Function1<Method1<CloseableIosSupplier>, Socket> SOCKET_CLOSER = socket -> self -> {
             uncheck(socket::close);

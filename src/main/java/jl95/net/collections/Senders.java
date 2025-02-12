@@ -6,9 +6,9 @@ import jl95.net.OsSupplier;
 import jl95.net.Sender;
 import jl95.pubsub.util.SerdesDefaults;
 
-public class SendersCollection {
+public class Senders {
 
-    private SendersCollection() {}
+    private Senders() {}
 
     public static Sender<byte[]> getBytesSender (OsSupplier os) {
 

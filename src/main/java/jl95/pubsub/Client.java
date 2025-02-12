@@ -14,9 +14,9 @@ import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
 import jl95.net.Receiver;
-import jl95.net.collections.ReceiversCollection;
+import jl95.net.collections.Receivers;
 import jl95.net.Sender;
-import jl95.net.collections.SendersCollection;
+import jl95.net.collections.Senders;
 import jl95.net.util.Util;
 import jl95.pubsub.util.Message;
 import jl95.pubsub.protocol.Publication;
@@ -30,7 +30,7 @@ import jl95.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.pubsub.util.MessageType;
 import jl95.pubsub.util.SerdesDefaults;
 import jl95.net.CloseableIosSupplier;
-import jl95.net.CloseableIosSuppliersCollection;
+import jl95.net.CloseableIosSuppliers;
 
 public class Client {
 
@@ -64,14 +64,14 @@ public class Client {
     public Client(CloseableIosSupplier  iosSupplier,
                   Options               options) {
         this.closer = unchecked(iosSupplier::close);
-        var jsonSender = SendersCollection.getJsonSender(iosSupplier);
+        var jsonSender = Senders.getJsonSender(iosSupplier);
         this.pubSender     = jsonSender.adapted(SerdesDefaults.pubMsgToJson);
         this.closeSender   = jsonSender.adapted(SerdesDefaults.closeReqToJson);
         this.subListSender = jsonSender.adapted(SerdesDefaults.subListReqToJson);
         this.subReSender   = jsonSender.adapted(SerdesDefaults.subRegexReqToJson);
         this.subAllSender  = jsonSender.adapted(SerdesDefaults.subAllReqToJson);
         this.subNoneSender = jsonSender.adapted(SerdesDefaults.subNoneReqToJson);
-        this.jsonReceiver  = ReceiversCollection.getJsonReceiver(iosSupplier);
+        this.jsonReceiver  = Receivers.getJsonReceiver(iosSupplier);
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,
@@ -84,7 +84,7 @@ public class Client {
     }
     public Client(Socket                clientSocket,
                   Options               options) {
-        this(CloseableIosSuppliersCollection.getLazySocketIos(clientSocket), options);
+        this(CloseableIosSuppliers.getLazySocketIos(clientSocket), options);
     }
     public Client(InetSocketAddress     serverAddr,
                   Options               options) {

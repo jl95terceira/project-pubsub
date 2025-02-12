@@ -6,9 +6,9 @@ import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import jl95.net.collections.IosSuppliersCollection;
-import jl95.net.collections.ReceiversCollection;
-import jl95.net.collections.SendersCollection;
+import jl95.net.collections.IosSuppliers;
+import jl95.net.collections.Receivers;
+import jl95.net.collections.Senders;
 
 public class Test {
 
@@ -35,7 +35,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiversCollection.getStringReceiver(IosSuppliersCollection.getSocketIos(sock)));
+                receiverFuture.complete(Receivers.getStringReceiver(IosSuppliers.getSocketIos(sock)));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -43,7 +43,7 @@ public class Test {
         }).start();
         var clientSocket = new java.net.Socket();
         clientSocket.connect(addr);
-        sender   = SendersCollection.getStringSender(IosSuppliersCollection.getSocketIos(clientSocket));
+        sender   = Senders.getStringSender(IosSuppliers.getSocketIos(clientSocket));
         receiver = receiverFuture.get();
     }
     @org.junit.After
