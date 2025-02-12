@@ -12,6 +12,9 @@ import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
 import jl95.net.*;
+import jl95.net.collections.IosSuppliersCollection;
+import jl95.net.collections.ReceiversCollection;
+import jl95.net.collections.SendersCollection;
 import jl95.pubsub.Subscription;
 import jl95.pubsub.protocol.Publication;
 
@@ -32,7 +35,7 @@ public class ServerConnection {
     public ServerConnection(Socket socket) {
         this.socket        = socket;
         this.jsonReceiver  = ReceiversCollection.getJsonReceiver(IosSuppliersCollection.getSocketIos(socket));
-        this.pubSender     = SendersCollection  .getJsonSender  (IosSuppliersCollection.getSocketIos(socket)).adapted(SerdesDefaults.pubMsgToJson);
+        this.pubSender     = SendersCollection.getJsonSender  (IosSuppliersCollection.getSocketIos(socket)).adapted(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

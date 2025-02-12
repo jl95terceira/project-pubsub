@@ -14,9 +14,9 @@ import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
 import jl95.net.Receiver;
-import jl95.net.ReceiversCollection;
+import jl95.net.collections.ReceiversCollection;
 import jl95.net.Sender;
-import jl95.net.SendersCollection;
+import jl95.net.collections.SendersCollection;
 import jl95.net.util.Util;
 import jl95.pubsub.util.Message;
 import jl95.pubsub.protocol.Publication;
@@ -30,6 +30,7 @@ import jl95.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.pubsub.util.MessageType;
 import jl95.pubsub.util.SerdesDefaults;
 import jl95.net.CloseableIosSupplier;
+import jl95.net.CloseableIosSuppliersCollection;
 
 public class Client {
 
@@ -83,7 +84,7 @@ public class Client {
     }
     public Client(Socket                clientSocket,
                   Options               options) {
-        this(CloseableIosSupplier.of(clientSocket), options);
+        this(CloseableIosSuppliersCollection.getLazySocketIos(clientSocket), options);
     }
     public Client(InetSocketAddress     serverAddr,
                   Options               options) {

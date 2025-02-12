@@ -6,6 +6,10 @@ import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+import jl95.net.collections.IosSuppliersCollection;
+import jl95.net.collections.ReceiversCollection;
+import jl95.net.collections.SendersCollection;
+
 public class Test {
 
     private static java.net.InetSocketAddress addr = new java.net.InetSocketAddress("127.0.0.1", 42422);

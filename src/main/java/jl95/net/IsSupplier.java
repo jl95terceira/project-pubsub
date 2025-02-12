@@ -27,8 +27,4 @@ public interface IsSupplier {
             }
         };
     }
-    static IsSupplier of(Socket                  socket) {
-
-        return IsSupplier.of(unchecked(socket::getInputStream));
-    }
 }

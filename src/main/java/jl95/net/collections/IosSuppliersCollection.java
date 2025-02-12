@@ -1,9 +1,10 @@
-package jl95.net;
+package jl95.net.collections;
 
 import static jl95.lang.SuperPowers.*;
 
-import java.net.InetSocketAddress;
 import java.net.Socket;
+
+import jl95.net.IosSupplier;
 
 public class IosSuppliersCollection {
 

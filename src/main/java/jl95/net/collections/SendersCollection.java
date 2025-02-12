@@ -1,16 +1,16 @@
-package jl95.net;
-
-import java.io.OutputStream;
+package jl95.net.collections;
 
 import javax.json.JsonValue;
 
+import jl95.net.OsSupplier;
+import jl95.net.Sender;
 import jl95.pubsub.util.SerdesDefaults;
 
 public class SendersCollection {
 
     private SendersCollection() {}
 
-    public static Sender<byte[]>    getBytesSender (OsSupplier os) {
+    public static Sender<byte[]> getBytesSender (OsSupplier os) {
 
         return new Sender<>(os) {
                 @Override protected byte[] toBytes(byte[] bytes)  { return bytes; }

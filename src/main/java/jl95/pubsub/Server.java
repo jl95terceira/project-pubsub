@@ -31,43 +31,16 @@ import jl95.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 
 public class Server {
 
-    public interface Options {
-
-        void onAcceptError  (Exception ex);
-        void onAcceptTimeout();
-
-        class Editable implements Server.Options {
-
-            public Method1<Exception> acceptErrorCb   = (ex) -> System.out.printf("Error on accept connection: %s%n", ex);
-            public Method0            acceptTimeoutCb = ()   -> {
-            };
-
-            @Override public void onAcceptError  (Exception ex) {
-                acceptErrorCb.call(ex);
-            }
-            @Override public void onAcceptTimeout()             { acceptTimeoutCb.call(); }
-        }
-        static Options defaults() { return new Editable(); }
-    }
-
     private final Map<ServerConnectionKey, ServerConnection>
                                     connectionsMap = new ConcurrentHashMap<>();
     private final jl95.net.Server   netServer;
 
-    public Server(ServerSocket      socket,
-                  Options           options) {
-        this.netServer = new jl95.net.Server(socket, new jl95.net.Server.Options() {
-
-            @Override public void         onAccept       (jl95.net.Server server, Socket    clientSocket) { Server.this.onAccept(clientSocket); }
-            @Override public void         onAcceptError  (jl95.net.Server server, Exception ex) { options.onAcceptError(ex); }
-            @Override public void         onAcceptTimeout(jl95.net.Server server) {
-                options.onAcceptTimeout();
-            }
-        });
+    public Server(ServerSocket      socket) {
+        this.netServer = new jl95.net.Server(socket);
+        this.netServer.setAcceptCb((self, socket_) -> onAccept(socket_));
     }
-    public Server(InetSocketAddress addr,
-                  Options           options) {
-        this(Util.getSimpleServerSocket(addr), options);
+    public Server(InetSocketAddress addr) {
+        this(Util.getSimpleServerSocket(addr));
     }
 
     private void                                     onAccept          (Socket     socket) {

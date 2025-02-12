@@ -18,7 +18,7 @@ public class Test {
 
     @org.junit.Before
     public void setUp() {
-        server = new Server(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs), Server.Options.defaults());
+        server = new Server(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs));
         server.startAccept().await();
     }
     @org.junit.After

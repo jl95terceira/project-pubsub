@@ -15,6 +15,11 @@ public interface CloseableIosSupplier extends IosSupplier {
 
     static CloseableIosSupplier of(InputStream  is,
                                    OutputStream os) { return of(() -> is, () -> os); }
+    static CloseableIosSupplier of(InputStream  is,
+                                   OutputStream os,
+                                   Method1<CloseableIosSupplier> closer) {
+        return of(constant(is), constant(os), closer);
+    }
     static CloseableIosSupplier of(Function0<InputStream>  isSupplier,
                                    Function0<OutputStream> osSupplier) {
         return of(isSupplier, osSupplier, (self) -> {
@@ -34,11 +39,5 @@ public interface CloseableIosSupplier extends IosSupplier {
             }
             @Override public void         close          () { closer.accept(this); }
         };
-    }
-    static CloseableIosSupplier of(Socket socket) {
-
-        return CloseableIosSupplier.of(unchecked(socket::getInputStream), unchecked(socket::getOutputStream), self -> {
-            uncheck(socket::close);
-        });
     }
 }

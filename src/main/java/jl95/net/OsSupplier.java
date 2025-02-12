@@ -27,8 +27,4 @@ public interface OsSupplier {
             }
         };
     }
-    static OsSupplier of(Socket                  socket) {
-
-        return OsSupplier.of(unchecked(socket::getOutputStream));
-    }
 }

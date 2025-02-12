@@ -1,16 +1,16 @@
-package jl95.net;
-
-import java.io.InputStream;
+package jl95.net.collections;
 
 import javax.json.JsonValue;
 
+import jl95.net.IsSupplier;
+import jl95.net.Receiver;
 import jl95.pubsub.util.SerdesDefaults;
 
 public class ReceiversCollection {
 
     private ReceiversCollection() {}
 
-    public static Receiver<byte[]>    getBytesReceiver (IsSupplier is) {
+    public static Receiver<byte[]> getBytesReceiver (IsSupplier is) {
 
         return new Receiver<>(is) {
                 @Override protected byte[] fromBytes(byte[] bytes)  { return bytes; }

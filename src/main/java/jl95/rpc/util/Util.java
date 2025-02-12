@@ -35,12 +35,11 @@ public class Util {
         }
         public static CloseableIosSupplier getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
-            var serverOptions = new Server.Options.Editable();
             var clientSocketFuture = new CompletableFuture<Socket>();
-            serverOptions.acceptCb = (self, socket) -> {
+            var server = new Server(jl95.net.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
+            server.setAcceptCb((self, socket) -> {
                 clientSocketFuture.complete(socket);
-            };
-            var server = new Server(jl95.net.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs), serverOptions);
+            });
             server.start();
             var clientSocket = uncheck(() -> clientConnectionTimeoutMs.isPresent()
                                            ? clientSocketFuture.get(clientConnectionTimeoutMs.get(), TimeUnit.MILLISECONDS)
