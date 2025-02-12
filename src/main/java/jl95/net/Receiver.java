@@ -33,10 +33,10 @@ public abstract class Receiver<T> {
             public Method1<Receiver<T>>              inputTimeoutHandler = (self) ->  {};
             public Function0<Integer>                inputRetryTimeoutMs = constant(50);
 
-            @Override public void afterStop          (Receiver<T> self) { afterStop.call(self); }
-            @Override public void onException        (Receiver<T> self, Exception   ex) { excHandler        .call(self, ex); }
-            @Override public void onIoException      (Receiver<T> self, IOException ex) { ioExcHandler      .call(self, ex); }
-            @Override public void onProtocolException(Receiver<T> self, Exception   ex) { protocolExcHandler.call(self, ex); }
+            @Override public void afterStop          (Receiver<T> self) { afterStop.accept(self); }
+            @Override public void onException        (Receiver<T> self, Exception   ex) { excHandler        .accept(self, ex); }
+            @Override public void onIoException      (Receiver<T> self, IOException ex) { ioExcHandler      .accept(self, ex); }
+            @Override public void onProtocolException(Receiver<T> self, Exception   ex) { protocolExcHandler.accept(self, ex); }
             @Override public void onInputTimeout     (Receiver<T> self) { inputTimeoutHandler.accept(self); }
             @Override public Integer inputRetryTimeoutMs() { return inputRetryTimeoutMs.apply(); }
         }
@@ -133,7 +133,7 @@ public abstract class Receiver<T> {
     synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb,
                                                             RecvOptions<T>        options) {
         return recvWhile((T incoming) -> {
-            incomingCb.call(incoming);
+            incomingCb.accept(incoming);
             return true;
         }, options);
     }
@@ -159,7 +159,7 @@ public abstract class Receiver<T> {
         return new Receiver<>(isSupplier) {
 
             @Override protected T2 fromBytes(byte[] incoming) {
-                return adapterFunction.call(Receiver.this.fromBytes(incoming));
+                return adapterFunction.apply(Receiver.this.fromBytes(incoming));
             }
         };
     }
