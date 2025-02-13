@@ -12,30 +12,33 @@ import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
 import jl95.net.*;
-import jl95.net.collections.IosSuppliers;
-import jl95.net.collections.Receivers;
-import jl95.net.collections.Senders;
+import jl95.net.ReceiversCollection;
+import jl95.net.SendersCollections;
+import jl95.pubsub.Message;
 import jl95.pubsub.Subscription;
 import jl95.pubsub.protocol.Publication;
 
 public class ServerConnection {
 
     private final BlockingQueue<Message<Publication>>
-                                    queue          = new ArrayBlockingQueue<>(20);
+                         queue          = new ArrayBlockingQueue<>(20);
     private      CompletableFuture<Void>
-                                    queueStopFuture;
-    private      Boolean            queueIsOn      = false;
-    private      Boolean            queueToStop    = false;
+                         queueStopFuture;
+    private      Boolean queueIsOn      = false;
+    private      Boolean queueToStop    = false;
 
     public final Socket                         socket;
-    public final Sender<Message<Publication>>   pubSender;
+    public final Sender  <Message<Publication>> pubSender;
+    public final Receiver<String>               stringReceiver;
     public final Receiver<JsonValue>            jsonReceiver;
     public       Subscription                   subscription = (topic) -> false;
 
     public ServerConnection(Socket socket) {
-        this.socket        = socket;
-        this.jsonReceiver  = Receivers.getJsonReceiver(IosSuppliers.getSocketIos(socket));
-        this.pubSender     = Senders.getJsonSender  (IosSuppliers.getSocketIos(socket)).adapted(SerdesDefaults.pubMsgToJson);
+        this.socket         = socket;
+        var ios             = Ios.getLazySocketIos(socket);
+        this.stringReceiver = ReceiversCollection.getStringReceiver(ios.getInputStream ());
+        this.jsonReceiver   = ReceiversCollection.getJsonReceiver  (ios.getInputStream ());
+        this.pubSender      = SendersCollections .getJsonSender    (ios.getOutputStream()).adapted(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

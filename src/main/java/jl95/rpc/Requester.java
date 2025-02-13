@@ -12,7 +12,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import jl95.lang.variadic.*;
-import jl95.net.IosSupplier;
+import jl95.net.Ios;
 import jl95.net.Receiver;
 import jl95.net.Sender;
 import jl95.rpc.util.Defaults;
@@ -58,14 +58,14 @@ public abstract class Requester<A, R> {
 
     private Requester(Sender  <Request>  sender,
                       Receiver<Response> receiver) {this.sender = sender; this.receiver = receiver;}
-    public  Requester(IosSupplier io) {
+    public  Requester(Ios ios) {
 
-        this.sender   = new Sender  <>(io) {
+        this.sender   = new Sender  <>(ios.getOutputStream()) {
             @Override protected byte[] toBytes(Request outgoing) {
                 return SerdesDefaults.requestToBytes.apply(outgoing);
             }
         };
-        this.receiver = new Receiver<>(io) {
+        this.receiver = new Receiver<>(ios.getInputStream()) {
             @Override protected Response fromBytes(byte[] incoming) {
                 return SerdesDefaults.responseFromBytes.apply(incoming);
             }

@@ -4,16 +4,20 @@ import static jl95.lang.SuperPowers.*;
 
 import javax.json.*;
 
-import jl95.pubsub.util.Message;
+import jl95.pubsub.Message;
 import jl95.lang.variadic.*;
+import jl95.serdes.InetSocketAddressToJson;
+import jl95.serdes.ListToJson;
 
 public class MessageSerializer {
 
     public enum Id {
 
-        ID  ("id"),
-        TYPE("type"),
-        BODY("body");
+        ID       ("id"),
+        TYPE     ("type"),
+        BODY     ("body"),
+        CLIENT_ID("clientId"),
+        STAMPS   ("stamps");
 
         public final String value;
         Id(String value) {this.value = value;}
@@ -31,9 +35,11 @@ public class MessageSerializer {
         return req -> {
             var job = Json.createObjectBuilder();
             for (var t: I(
-                tuple(Id.ID  , Json.createValue(req.id  .toString())),
-                tuple(Id.TYPE, Json.createValue(typeName.toString())),
-                tuple(Id.BODY, bodySerializer.call(req.body))
+                tuple(Id.ID  ,      Json.createValue(req.id.toString())),
+                tuple(Id.TYPE,      Json.createValue(typeName.toString())),
+                tuple(Id.BODY,      bodySerializer.call(req.body)),
+                tuple(Id.CLIENT_ID, Json.createValue(req.clientId.toString())),
+                tuple(Id.STAMPS,    ListToJson.get(InetSocketAddressToJson.get()).apply(req.stamps))
             )) {
                 job.add(t.a1.value, t.a2);
             }

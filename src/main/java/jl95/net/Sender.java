@@ -2,7 +2,6 @@ package jl95.net;
 
 import static jl95.lang.SuperPowers.constant;
 
-import java.io.IOException;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
@@ -16,15 +15,12 @@ public abstract class Sender<T> {
         public SendException(Exception ex) {super(ex);}
     }
 
-    private final OsSupplier osSupplier;
+    private final OutputStream os;
 
     protected abstract byte[] toBytes(T outgoing);
 
-    public Sender(OsSupplier   osSupplier) {
-        this.osSupplier = osSupplier;
-    }
     public Sender(OutputStream os) {
-        this(OsSupplier.of(os));
+        this.os = os;
     }
 
     public final void         send           (T                outgoing) {
@@ -38,7 +34,6 @@ public abstract class Sender<T> {
         var size            = outgoingAsBytes.length;
         var sizeAsBytes     = java.math.BigInteger.valueOf(size).toByteArray();
         try {
-            var os = osSupplier.getOutputStream();
             os.write(sizeAsBytes.length);
             os.write(sizeAsBytes);
             os.write(outgoingAsBytes);
@@ -47,10 +42,10 @@ public abstract class Sender<T> {
             throw new SendException(ex);
         }
     }
-    public final OutputStream getOutputStream() { return osSupplier.getOutputStream(); }
+    public final OutputStream getOutputStream() { return os; }
     public final <T2> Sender<T2> adapted(Function1<T, T2> adapterFunction) {
 
-        return new Sender<>(osSupplier) {
+        return new Sender<>(os) {
 
             @Override protected byte[] toBytes(T2 incoming) {
                 return Sender.this.toBytes(adapterFunction.call(incoming));

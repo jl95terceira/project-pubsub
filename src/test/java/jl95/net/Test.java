@@ -6,10 +6,6 @@ import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import jl95.net.collections.IosSuppliers;
-import jl95.net.collections.Receivers;
-import jl95.net.collections.Senders;
-
 public class Test {
 
     private static java.net.InetSocketAddress addr = new java.net.InetSocketAddress("127.0.0.1", 42422);
@@ -35,7 +31,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(Receivers.getStringReceiver(IosSuppliers.getSocketIos(sock)));
+                receiverFuture.complete(ReceiversCollection.getStringReceiver(Ios.getLazySocketIos(sock).getInputStream()));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -43,7 +39,7 @@ public class Test {
         }).start();
         var clientSocket = new java.net.Socket();
         clientSocket.connect(addr);
-        sender   = Senders.getStringSender(IosSuppliers.getSocketIos(clientSocket));
+        sender   = SendersCollections.getStringSender(Ios.getLazySocketIos(clientSocket).getOutputStream());
         receiver = receiverFuture.get();
     }
     @org.junit.After

@@ -8,6 +8,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.Future;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
@@ -15,7 +17,7 @@ import jl95.lang.variadic.*;
 public class Server {
 
     private final ServerSocket               serverSocket;
-    private final Object                     sync = new Object();
+    private final ThreadPoolExecutor         pool = new ScheduledThreadPoolExecutor(4);
     private       Method2<Server, Socket>    acceptCb;
     private       Method2<Server, Exception> acceptErrorCb;
     private       Method1<Server>            acceptTimeoutCb;
@@ -61,7 +63,7 @@ public class Server {
                         ifNull(acceptErrorCb, (self, ex_) -> { System.out.printf("Error on accept: %s\n", ex_); }).accept(this, ex);
                         continue;
                     }
-                    ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket);
+                    pool.execute(() -> ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket));
                 }
                 catch (Exception ex) /* happened in non-final (overridable) methods */ {
                     ex.printStackTrace();
@@ -82,4 +84,8 @@ public class Server {
     }
     synchronized public final Boolean         isRunning() { return isRunning; }
     synchronized public final ServerSocket    getSocket() { return serverSocket; }
+
+    public void close() {
+        uncheck(getSocket()::close);
+    }
 }

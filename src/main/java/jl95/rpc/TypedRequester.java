@@ -3,7 +3,7 @@ package jl95.rpc;
 import static jl95.lang.SuperPowers.*;
 
 import jl95.lang.variadic.*;
-import jl95.net.IosSupplier;
+import jl95.net.Ios;
 import jl95.rpc.util.TypedPayload;
 import jl95.rpc.util.serdes.TypedPayloadJsonSerdes;
 
@@ -17,7 +17,7 @@ public abstract class TypedRequester<ABase, RBase> {
     protected abstract byte[] toBytes  (ABase  requestBase);
     protected abstract RBase  fromBytes(byte[] responseSerial);
 
-    public  TypedRequester(IosSupplier io) {
+    public  TypedRequester(Ios io) {
 
         this(RequestersCollection.getJsonRequester(io).adapted(
             TypedPayloadJsonSerdes::toJson,

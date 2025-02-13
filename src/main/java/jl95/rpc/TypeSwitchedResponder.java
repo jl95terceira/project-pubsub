@@ -7,7 +7,7 @@ import java.util.Map;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
-import jl95.net.IosSupplier;
+import jl95.net.Ios;
 import jl95.rpc.util.TypedPayload;
 import jl95.rpc.util.serdes.TypedPayloadJsonSerdes;
 
@@ -27,7 +27,7 @@ public abstract class TypeSwitchedResponder<ABase, RBase> {
     protected abstract ABase  fromBytes(byte[] requestSerial);
     protected abstract byte[] toBytes  (RBase  responseBase);
 
-    public TypeSwitchedResponder(IosSupplier io) {
+    public TypeSwitchedResponder(Ios io) {
         this(RespondersCollection.getJsonResponser(io).adapted(
             TypedPayloadJsonSerdes::fromJson,
             TypedPayloadJsonSerdes::toJson

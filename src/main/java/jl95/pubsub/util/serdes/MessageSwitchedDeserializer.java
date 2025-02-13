@@ -7,9 +7,12 @@ import java.util.UUID;
 
 import javax.json.JsonValue;
 
-import jl95.pubsub.util.Message;
+import jl95.lang.I;
+import jl95.pubsub.Message;
 import jl95.pubsub.util.SerdesDefaults;
 import jl95.lang.variadic.Function1;
+import jl95.serdes.InetSocketAddressFromJson;
+import jl95.serdes.ListFromJson;
 
 public class MessageSwitchedDeserializer<R> implements Function1<R, JsonValue> {
 
@@ -21,13 +24,24 @@ public class MessageSwitchedDeserializer<R> implements Function1<R, JsonValue> {
     private <B> Function1<R, JsonValue> getCaller(Function1<B, JsonValue> bodyDeserializer, Function1<R, Message<B>> callback) {
         return json -> {
 
-            var jsonO = json.asJsonObject();
+            var jsono = json.asJsonObject();
             var req = new Message<B>();
-            for (var t : I(tuple(MessageSerializer.Id.ID, method((String i) -> {
-                req.id = UUID.fromString(SerdesDefaults.stringFromJson.apply(jsonO.get(i)));
-            })), tuple(MessageSerializer.Id.BODY, method((String i) -> {
-                req.body = bodyDeserializer.apply(jsonO.get(i));
-            })))) {
+            for (var t : I(
+
+                tuple(MessageSerializer.Id.ID,              method((String i) -> {
+                    req.id             = UUID.fromString(SerdesDefaults.stringFromJson.apply(jsono.get(i)));
+                })),
+                tuple(MessageSerializer.Id.BODY,            method((String i) -> {
+                    req.body           = bodyDeserializer.apply(jsono.get(i));
+                })),
+                tuple(MessageSerializer.Id.CLIENT_ID,       method((String i) -> {
+                    req.clientId       = UUID.fromString(SerdesDefaults.stringFromJson.apply(jsono.get(i)));
+                })),
+                tuple(MessageSerializer.Id.STAMPS,          method((String i) -> {
+                    req.stamps = I.of(ListFromJson.get(InetSocketAddressFromJson.get()).apply(jsono.get(i))).toSet();
+                }))
+
+            )) {
                 t.a2.accept(t.a1.value);
             }
             return callback.apply(req);

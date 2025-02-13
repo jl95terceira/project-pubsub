@@ -4,11 +4,11 @@ import java.util.UUID;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
-import jl95.net.IosSupplier;
+import jl95.net.Ios;
 import jl95.net.Receiver;
-import jl95.net.collections.Receivers;
+import jl95.net.ReceiversCollection;
 import jl95.net.Sender;
-import jl95.net.collections.Senders;
+import jl95.net.SendersCollections;
 import jl95.rpc.util.Request;
 import jl95.rpc.util.serdes.ResponseJsonSerdes;
 import jl95.rpc.util.serdes.RequestJsonSerdes;
@@ -31,10 +31,10 @@ public abstract class Responder<A, R> {
         this.receiver = receiver;
         this.sender   = sender;
     }
-    public  Responder(IosSupplier io) {
+    public  Responder(Ios ios) {
 
-        this.receiver = Receivers.getBytesReceiver(io).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
-        this.sender   = Senders.getBytesSender  (io).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
+        this.receiver = ReceiversCollection.getBytesReceiver(ios.getInputStream ()).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
+        this.sender   = SendersCollections.getBytesSender  (ios.getOutputStream()).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
     }
 
     synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {

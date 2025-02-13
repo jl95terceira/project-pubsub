@@ -48,7 +48,7 @@ public abstract class Receiver<T> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotYetReceivingException  extends RuntimeException {}
 
-    private final IsSupplier              isSupplier;
+    private final InputStream             in;
     private       Boolean                 isReceiving = false;
     private       Boolean                 toStop      = false;
     private       CompletableFuture<Void> startFuture;
@@ -56,11 +56,8 @@ public abstract class Receiver<T> {
 
     protected abstract T fromBytes(byte[] incoming);
 
-    public Receiver(IsSupplier  isSupplier) {
-        this.isSupplier = isSupplier;
-    }
     public Receiver(InputStream is) {
-        this(IsSupplier.of(is));
+        this.in = is;
     }
 
     synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue,
@@ -78,23 +75,22 @@ public abstract class Receiver<T> {
                 byte[] incomingAsBytes;
                 try {
                     try {
-                        var inputStream = isSupplier.getInputStream();
-                        if (inputStream.available() == 0) {
+                        if (in.available() == 0) {
                             options.onInputTimeout(this);
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
-                        var sizeSize        = inputStream.read();
+                        var sizeSize        = in.read();
                         if (sizeSize == -1) {
                             options.onInputTimeout(this);
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
                         var sizeAsBytes     = new byte[sizeSize];
-                        inputStream.read(sizeAsBytes, 0, sizeSize);
+                        in.read(sizeAsBytes, 0, sizeSize);
                         var size            = new java.math.BigInteger(sizeAsBytes).intValue();
                         incomingAsBytes     = new byte[size];
-                        inputStream.read(incomingAsBytes, 0, size);
+                        in.read(incomingAsBytes, 0, size);
                     }
                     catch (IOException ex) {
                         options.onIoException(this, ex);
@@ -132,7 +128,7 @@ public abstract class Receiver<T> {
     }
     synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb,
                                                             RecvOptions<T>        options) {
-        return recvWhile((T incoming) -> {
+        return recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return true;
         }, options);
@@ -140,6 +136,16 @@ public abstract class Receiver<T> {
     synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb) {
 
         return recv(incomingCb, RecvOptions.defaults());
+    }
+    synchronized public final Awaitable<Void> recvOnce     (Method1<T>            incomingCb,
+                                                            RecvOptions<T>        options) {
+        return recvWhile(incoming -> {
+            incomingCb.accept(incoming);
+            return false;
+        }, options);
+    }
+    synchronized public final Awaitable<Void> recvOnce     (Method1<T>            incomingCb) {
+        return recvOnce(incomingCb, RecvOptions.defaults());
     }
     synchronized public final Awaitable<Void> recvStop     () {
 
@@ -153,10 +159,10 @@ public abstract class Receiver<T> {
     public final Boolean           isReceiving   () {
         return isReceiving;
     }
-    public final InputStream       getInputStream() { return isSupplier.getInputStream(); }
+    public final InputStream       getInputStream() { return in; }
     public final <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
 
-        return new Receiver<>(isSupplier) {
+        return new Receiver<>(in) {
 
             @Override protected T2 fromBytes(byte[] incoming) {
                 return adapterFunction.apply(Receiver.this.fromBytes(incoming));

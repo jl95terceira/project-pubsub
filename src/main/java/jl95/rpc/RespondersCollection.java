@@ -2,12 +2,12 @@ package jl95.rpc;
 
 import javax.json.JsonValue;
 
-import jl95.net.IosSupplier;
+import jl95.net.Ios;
 import jl95.rpc.util.SerdesDefaults;
 
 public class RespondersCollection {
 
-    public static Responder<byte[],      byte[]>    getBytesResponder (IosSupplier io) {
+    public static Responder<byte[],      byte[]>    getBytesResponder (Ios io) {
 
         return new Responder<>(io) {
 
@@ -17,14 +17,14 @@ public class RespondersCollection {
                     }
         };
     }
-    public static Responder<String,    String> getStringResponser(IosSupplier io) {
+    public static Responder<String,    String> getStringResponser(Ios io) {
 
         return getBytesResponder(io).adapted(
             SerdesDefaults.stringFromBytes,
             SerdesDefaults.stringToBytes
         );
     }
-    public static Responder<JsonValue, JsonValue> getJsonResponser  (IosSupplier io) {
+    public static Responder<JsonValue, JsonValue> getJsonResponser  (Ios io) {
 
         return getStringResponser(io).adapted(
             SerdesDefaults.jsonFromString,

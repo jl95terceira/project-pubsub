@@ -4,7 +4,6 @@ import static jl95.lang.SuperPowers.*;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.lang.Ref;
 import jl95.net.util.Util;
 import jl95.pubsub.util.Defaults;
 
@@ -12,8 +11,8 @@ public class Test {
 
     public Server server;
 
-    private Client getClient() {
-        return new Client(Defaults.serverAddr, Client.Options.defaults());
+    private Client<String, String> getClient() {
+        return ClientsCollection.getStringClient(Defaults.serverAddr);
     }
 
     @org.junit.Before
@@ -43,12 +42,12 @@ public class Test {
         var publisher  = getClient();
         var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed(msg -> {
-            msgFuture.complete(new String(msg.data));
+        subscriber.onConsumed((topic, payload) -> {
+            msgFuture.complete(payload);
         });
         subscriber.subscribeByList(I("foo"));
         sleep(125);
-        publisher.produce("foo", "BAR".getBytes());
+        publisher.produce("foo", "BAR");
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
     @org.junit.Test
@@ -56,10 +55,10 @@ public class Test {
         var publisher  = getClient();
         var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed(msg -> {
-            msgFuture.complete(new String(msg.data));
+        subscriber.onConsumed((topic, payload) -> {
+            msgFuture.complete(payload);
         });
-        publisher.produce("foo", "BAR".getBytes());
+        publisher.produce("foo", "BAR");
         sleep(125);
         org.junit.Assert.assertFalse(msgFuture.isDone());
     }
@@ -68,14 +67,14 @@ public class Test {
         var publisher  = getClient();
         var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed(msg -> {
-            msgFuture.complete(new String(msg.data));
+        subscriber.onConsumed((topic, payload) -> {
+            msgFuture.complete(payload);
         });
-        publisher.produce("foo", "BAR".getBytes());
+        publisher.produce("foo", "BAR");
         org.junit.Assert.assertFalse(msgFuture.isDone());
         subscriber.subscribeByList(I("foo"));
         sleep(125);
-        publisher.produce("foo", "BAR".getBytes());
+        publisher.produce("foo", "BAR");
         sleep(125);
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }

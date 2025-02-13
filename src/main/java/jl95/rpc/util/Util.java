@@ -11,14 +11,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import jl95.net.CloseableIosSupplier;
+import jl95.net.CloseableIos;
 import jl95.net.Server;
 import jl95.net.util.Defaults;
 
 public class Util {
 
-        public static CloseableIosSupplier getIoFromSocket(Socket            socket) {
-            return new CloseableIosSupplier() {
+        public static CloseableIos getIoFromSocket(Socket            socket) {
+            return new CloseableIos() {
                 @Override public InputStream getInputStream() { return uncheck(socket::getInputStream); }
                 @Override public OutputStream getOutputStream() { return uncheck(socket::getOutputStream); }
                 @Override public void         close () {
@@ -28,12 +28,12 @@ public class Util {
                 }
             };
         }
-        public static CloseableIosSupplier getIoAsClient  (InetSocketAddress addr) {
+        public static CloseableIos getIoAsClient  (InetSocketAddress addr) {
             var socket = new Socket();
             uncheck(() -> socket.connect(addr));
             return getIoFromSocket(socket);
         }
-        public static CloseableIosSupplier getIoAsServer  (InetSocketAddress addr,
+        public static CloseableIos getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
             var clientSocketFuture = new CompletableFuture<Socket>();
             var server = new Server(jl95.net.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
@@ -48,5 +48,5 @@ public class Util {
             uncheck(server.getSocket()::close); // release bind address
             return getIoFromSocket(clientSocket);
         }
-        public static CloseableIosSupplier getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
+        public static CloseableIos getIoAsServer  (InetSocketAddress addr) { return getIoAsServer(addr, Optional.empty()); }
 }
