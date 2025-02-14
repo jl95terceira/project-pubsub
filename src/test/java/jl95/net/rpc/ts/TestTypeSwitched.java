@@ -1,4 +1,4 @@
-package jl95.rpc.ts;
+package jl95.net.rpc.ts;
 
 import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
