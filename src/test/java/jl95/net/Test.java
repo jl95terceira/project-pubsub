@@ -6,6 +6,14 @@ import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+import jl95.net.sr.Ios;
+import jl95.net.sr.Receiver;
+import jl95.net.sr.ReceiverAdaptersCollection;
+import jl95.net.sr.ReceiverIf;
+import jl95.net.sr.Sender;
+import jl95.net.sr.SenderAdaptersCollections;
+import jl95.net.sr.SenderIf;
+
 public class Test {
 
     private static java.net.InetSocketAddress addr = new java.net.InetSocketAddress("127.0.0.1", 42422);
@@ -14,7 +22,7 @@ public class Test {
     static { Runtime.getRuntime().addShutdownHook(new Thread(() -> { toStop = true; })); }
 
     private ReceiverIf<String> receiver;
-    private SenderIf  <String> sender;
+    private SenderIf<String> sender;
 
     @org.junit.Before
     public void setUp() throws Exception {
@@ -31,7 +39,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiverAdaptersCollection.getStringReceiver(Receiver.of(Ios.getLazySocketIos(sock).getInputStream())));
+                receiverFuture.complete(ReceiverAdaptersCollection.asStringReceiver(Receiver.of(Ios.fromSocketLazy(sock).getInputStream())));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -39,7 +47,7 @@ public class Test {
         }).start();
         var clientSocket = new java.net.Socket();
         clientSocket.connect(addr);
-        sender   = SenderAdaptersCollections.getStringSender(Sender.of(Ios.getLazySocketIos(clientSocket).getOutputStream()));
+        sender   = SenderAdaptersCollections.asStringSender(Sender.of(Ios.fromSocketLazy(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
     }
     @org.junit.After

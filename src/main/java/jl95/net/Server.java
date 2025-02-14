@@ -1,12 +1,10 @@
 package jl95.net;
 
-import static java.lang.String.*;
 import static jl95.lang.SuperPowers.ifNull;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.Future;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;

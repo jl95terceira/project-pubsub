@@ -4,29 +4,34 @@ import static jl95.lang.SuperPowers.*;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.net.util.Util;
-import jl95.pubsub.util.Defaults;
+import jl95.net.pubsub.Member;
+import jl95.net.pubsub.MemberAdaptersCollection;
+import jl95.net.pubsub.ConsumerIf;
+import jl95.net.pubsub.ProducerIf;
+import jl95.net.pubsub.Broker;
+import jl95.net.sr.util.Util;
+import jl95.net.pubsub.util.Defaults;
 
 public class Test {
 
-    public Server server;
-    public Client client;
+    public Broker server;
+    public Member client;
     public ProducerIf<String> producer;
     public ConsumerIf<String> consumer;
-    public Client client2;
+    public Member client2;
     public ProducerIf<String> producer2;
     public ConsumerIf<String> consumer2;
 
     @org.junit.Before
     public void setUp() {
-        server = new Server(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs));
+        server = new Broker(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs));
         server.startAccept().await();
-        client  = new Client(Defaults.serverAddr);
-        producer = ClientAdaptersCollection.getStringProducer(client);
-        consumer = ClientAdaptersCollection.getStringConsumer(client);
-        client2 = new Client(Defaults.serverAddr);
-        producer2 = ClientAdaptersCollection.getStringProducer(client2);
-        consumer2 = ClientAdaptersCollection.getStringConsumer(client2);
+        client  = new Member(Defaults.serverAddr);
+        producer = MemberAdaptersCollection.getStringProducer(client);
+        consumer = MemberAdaptersCollection.getStringConsumer(client);
+        client2 = new Member(Defaults.serverAddr);
+        producer2 = MemberAdaptersCollection.getStringProducer(client2);
+        consumer2 = MemberAdaptersCollection.getStringConsumer(client2);
     }
     @org.junit.After
     public void tearDown() {
