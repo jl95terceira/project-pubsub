@@ -12,11 +12,14 @@ import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
 import jl95.net.*;
-import jl95.net.ReceiversCollection;
-import jl95.net.SendersCollections;
+import jl95.net.ReceiverAdaptersCollection;
+import jl95.net.SenderAdaptersCollections;
 import jl95.pubsub.Message;
 import jl95.pubsub.Subscription;
 import jl95.pubsub.protocol.Publication;
+import jl95.rpc.Responder;
+import jl95.rpc.ResponderIf;
+import jl95.rpc.ResponderAdaptersCollection;
 
 public class ServerConnection {
 
@@ -27,18 +30,24 @@ public class ServerConnection {
     private      Boolean queueIsOn      = false;
     private      Boolean queueToStop    = false;
 
-    public final Socket                         socket;
-    public final Sender  <Message<Publication>> pubSender;
-    public final Receiver<String>               stringReceiver;
-    public final Receiver<JsonValue>            jsonReceiver;
-    public       Subscription                   subscription = (topic) -> false;
+    public final Socket                             socket;
+    public final Sender                             sender;
+    public final SenderIf   <Message<Publication>>  pubSender;
+    public final Receiver                           receiver;
+    public final ReceiverIf<JsonValue>              jsonReceiver;
+    public final Responder                          responder;
+    public final ResponderIf<String, String>        clientRegResponder;
+    public       Subscription                       subscription = (topic) -> false;
 
     public ServerConnection(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.getLazySocketIos(socket);
-        this.stringReceiver = ReceiversCollection.getStringReceiver(ios.getInputStream ());
-        this.jsonReceiver   = ReceiversCollection.getJsonReceiver  (ios.getInputStream ());
-        this.pubSender      = SendersCollections .getJsonSender    (ios.getOutputStream()).adapted(SerdesDefaults.pubMsgToJson);
+        this.responder      = Responder.fromIo(ios);
+        this.clientRegResponder = ResponderAdaptersCollection.getStringResponder(responder);
+        this.receiver       = Receiver.of(ios.getInputStream());
+        this.jsonReceiver   = ReceiverAdaptersCollection.getJsonReceiver(receiver);
+        this.sender         = Sender  .of(ios.getOutputStream());
+        this.pubSender      = SenderAdaptersCollections .getJsonSender  (sender).adaptedSender(SerdesDefaults.pubMsgToJson);
     }
 
     synchronized

@@ -13,14 +13,14 @@ public class Test {
 
     static { Runtime.getRuntime().addShutdownHook(new Thread(() -> { toStop = true; })); }
 
-    private Receiver<String> receiver;
-    private Sender  <String> sender;
+    private ReceiverIf<String> receiver;
+    private SenderIf  <String> sender;
 
     @org.junit.Before
     public void setUp() throws Exception {
         var serversock = new ServerSocket();
         serversock.bind(addr);
-        CompletableFuture<Receiver<String>> receiverFuture = new CompletableFuture<>();
+        CompletableFuture<ReceiverIf<String>> receiverFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
                 var sock = serversock.accept();
@@ -31,7 +31,7 @@ public class Test {
                     catch(Exception ex) {}
                 }));
                 serversock.close();
-                receiverFuture.complete(ReceiversCollection.getStringReceiver(Ios.getLazySocketIos(sock).getInputStream()));
+                receiverFuture.complete(ReceiverAdaptersCollection.getStringReceiver(Receiver.of(Ios.getLazySocketIos(sock).getInputStream())));
             }
             catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -39,7 +39,7 @@ public class Test {
         }).start();
         var clientSocket = new java.net.Socket();
         clientSocket.connect(addr);
-        sender   = SendersCollections.getStringSender(Ios.getLazySocketIos(clientSocket).getOutputStream());
+        sender   = SenderAdaptersCollections.getStringSender(Sender.of(Ios.getLazySocketIos(clientSocket).getOutputStream()));
         receiver = receiverFuture.get();
     }
     @org.junit.After

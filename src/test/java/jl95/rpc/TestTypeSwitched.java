@@ -12,19 +12,19 @@ public class TestTypeSwitched {
 
     CloseableIos ioAsServer;
     CloseableIos ioAsClient;
-    TypedRequester       <String, String> requester;
-    TypeSwitchedResponder<String, String> responder;
+    TypedRequesterIf       <String, String> requester;
+    TypeSwitchedResponderIf<String, String> responder;
 
     @org.junit.Before
     public void setUp() throws Exception {
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.util.Defaults.serverAddr);
-            return TypedRequestersCollection.getStringRequester(ioAsServer);
+            return RequesterAdaptersCollection.getTypedStringRequester(TypedRequester.fromSimpleRpc(Requester.fromIo(ioAsServer)));
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.util.Defaults.serverAddr);
-            return TypeSwitchedRespondersCollection.getStringResponder(ioAsClient);
+            return ResponderAdaptersCollection.getTsStringResponder(TypeSwitchedResponder.fromIo(ioAsClient));
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();
@@ -40,11 +40,12 @@ public class TestTypeSwitched {
     public void test() {
         responder.addCase("hello"  , msg -> "hello, " + msg);
         responder.addCase("bye"    , msg -> "bye, "   + msg);
-        responder.addCase("answer" , i -> i.equals(42), Integer::parseInt, Object::toString);
+        responder.adapted(Integer::parseInt, Object::toString).addCase("answer" , i -> i.equals(42));
         responder.start().await();
         org.junit.Assert.assertEquals("hello, world", requester.getFunction("hello").apply("world"));
-        org.junit.Assert.assertEquals(Boolean.FALSE , requester.getFunction("answer", (Integer i) -> i.toString(), Boolean::parseBoolean).apply(100));
-        org.junit.Assert.assertEquals(Boolean.TRUE  , requester.getFunction("answer", (Integer i) -> i.toString(), Boolean::parseBoolean).apply(42));
+        var intRequester = requester.adapted((Integer i) -> i.toString(), Boolean::parseBoolean);
+        org.junit.Assert.assertEquals(Boolean.FALSE , intRequester.getFunction("answer").apply(100));
+        org.junit.Assert.assertEquals(Boolean.TRUE  , intRequester.getFunction("answer").apply(42));
         org.junit.Assert.assertEquals("bye, world"  , requester.getFunction("bye").apply("world"));
     }
     @org.junit.Test

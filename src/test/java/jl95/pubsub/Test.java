@@ -10,71 +10,66 @@ import jl95.pubsub.util.Defaults;
 public class Test {
 
     public Server server;
-
-    private Client<String, String> getClient() {
-        return ClientsCollection.getStringClient(Defaults.serverAddr);
-    }
+    public Client client;
+    public ProducerIf<String> producer;
+    public ConsumerIf<String> consumer;
+    public Client client2;
+    public ProducerIf<String> producer2;
+    public ConsumerIf<String> consumer2;
 
     @org.junit.Before
     public void setUp() {
         server = new Server(Util.getSimpleServerSocket(Defaults.serverAddr, Defaults.serverAcceptTimeoutMs));
         server.startAccept().await();
+        client  = new Client(Defaults.serverAddr);
+        producer = ClientAdaptersCollection.getStringProducer(client);
+        consumer = ClientAdaptersCollection.getStringConsumer(client);
+        client2 = new Client(Defaults.serverAddr);
+        producer2 = ClientAdaptersCollection.getStringProducer(client2);
+        consumer2 = ClientAdaptersCollection.getStringConsumer(client2);
     }
     @org.junit.After
     public void tearDown() {
+        client.close();
+        client2.close();
         server.stopAccept().await();
         uncheck(() -> server.getNetServer().getSocket().close());
     }
 
     @org.junit.Test
-    public void test() {}
-    @org.junit.Test
-    public void test2() {}
-    @org.junit.Test
-    public void testConnectAndClose() {
-        var client  = getClient();
-        var client2 = getClient();
-        client .close();
-        client2.close();
-    }
+    public void testConnectAndClose() {}
     @org.junit.Test
     public void testPubSub() {
-        var publisher  = getClient();
-        var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed((topic, payload) -> {
+        consumer.onConsumed((topic, payload) -> {
             msgFuture.complete(payload);
         });
-        subscriber.subscribeByList(I("foo"));
+        client.subscribeByList(I("foo"));
         sleep(125);
-        publisher.produce("foo", "BAR");
+        producer.produce("foo", "BAR");
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
     @org.junit.Test
     public void testPubNoSub() {
-        var publisher  = getClient();
-        var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed((topic, payload) -> {
+        consumer.onConsumed((topic, payload) -> {
             msgFuture.complete(payload);
         });
-        publisher.produce("foo", "BAR");
+        producer.produce("foo", "BAR");
         sleep(125);
         org.junit.Assert.assertFalse(msgFuture.isDone());
     }
     @org.junit.Test
     public void testPubNoSubThenSub() {
-        var publisher  = getClient();
-        var subscriber = getClient();
         var msgFuture  = new CompletableFuture<String>();
-        subscriber.onConsumed((topic, payload) -> {
+        consumer.onConsumed((topic, payload) -> {
             msgFuture.complete(payload);
         });
-        publisher.produce("foo", "BAR");
+        producer.produce("foo", "BAR");
         org.junit.Assert.assertFalse(msgFuture.isDone());
-        subscriber.subscribeByList(I("foo"));
+        client.subscribeByList(I("foo"));
         sleep(125);
-        publisher.produce("foo", "BAR");
+        producer.produce("foo", "BAR");
         sleep(125);
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }

@@ -12,19 +12,19 @@ public class Test {
 
     CloseableIos ioAsServer;
     CloseableIos ioAsClient;
-    Requester<String, String> requester;
-    Responder<String, String> responder;
+    RequesterIf<String, String> requester;
+    ResponderIf<String, String> responder;
 
     @org.junit.Before
     public void setUp() throws Exception {
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.util.Defaults.serverAddr);
-            return RequestersCollection.getStringRequester(ioAsServer);
+            return RequesterAdaptersCollection.getStringRequester(Requester.fromIo(ioAsServer));
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.util.Defaults.serverAddr);
-            return RespondersCollection.getStringResponser(ioAsClient);
+            return ResponderAdaptersCollection.getStringResponder(Responder.fromIo(ioAsClient));
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();
@@ -38,27 +38,27 @@ public class Test {
 
     @org.junit.Test
     public void testStartStop() {
-        responder.start(self::apply).await();
+        responder.respond(self::apply).await();
         responder.stop ()           .await();
-        responder.start(self::apply).await();
+        responder.respond(self::apply).await();
         responder.stop ()           .await();
     }
     @org.junit.Test
     public void test() {
-        responder.start(msg -> "hello, " + msg).await();
+        responder.respond(msg -> "hello, " + msg).await();
         org.junit.Assert.assertEquals("hello, world", requester.apply("world"));
     }
     @org.junit.Test
     public void test2() { // to confirm that the server socket is closed correctly (in tearDown) - otherwise, an address binding error will happen
-        responder.start(msg -> "greetings, " + msg).await();
+        responder.respond(msg -> "greetings, " + msg).await();
         org.junit.Assert.assertEquals("greetings, universe", requester.apply("universe"));
     }
     @org.junit.Test
     public void testTimeout() {
-        responder.start(self::apply).await();
+        responder.respond(self::apply).await();
         org.junit.Assert.assertEquals("first", requester.apply("first"));
         responder.stop().await();
-        responder.start(msg -> {
+        responder.respond(msg -> {
             sleep(Defaults.responseTimeoutMs + 1000);
             return "";
         }).await();
@@ -68,7 +68,7 @@ public class Test {
         }
         catch (Requester.ResponseTimeoutException ex) {/* as expected */}
         responder.stop ()           .await();
-        responder.start(self::apply).await();
+        responder.respond(self::apply).await();
         org.junit.Assert.assertEquals("third", requester.apply("third"));
     }
 }

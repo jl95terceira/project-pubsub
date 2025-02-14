@@ -9,8 +9,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.json.JsonValue;
-
 import jl95.lang.Awaitable;
 import jl95.lang.StrictMap;
 import jl95.net.Receiver;
@@ -50,7 +48,10 @@ public class Server {
         var connection = new ServerConnection(socket);
         // receive client ID and put in connections map
         var clientIdFuture = new CompletableFuture<String>();
-        connection.stringReceiver.recvOnce(clientIdFuture::complete);
+        connection.clientRegResponder.respondOnce(clientId -> {
+            clientIdFuture.complete(clientId);
+            return clientId;
+        });
         var clientId = UUID.fromString(uncheck(() -> clientIdFuture.get()));
         connectionsMap.put(clientId, connection);
         // ...
@@ -69,16 +70,16 @@ public class Server {
             switchingDeser.addCase(
                 t.a1,
                 t.a2,
-                decorated(getSubReqHandler(connection))
+                decorate(getSubReqHandler(connection))
             );
         }
         switchingDeser.addCase(
             MessageType.PUBLISH.serial,
             PublicationJsonSerdes::fromJson,
-            decorated(getPubReqHandler(connection))
+            decorate(getPubReqHandler(connection))
         );
-        var recvOptions = new Receiver.RecvOptions.Editable<JsonValue>();
-        recvOptions.afterStop = (receiver) -> {
+        var recvOptions = new Receiver.RecvOptions.Editable();
+        recvOptions.afterStop = () -> {
             uncheck(connection.socket::close);
             connectionsMap.remove(clientId);
         };
@@ -96,7 +97,7 @@ public class Server {
         uncheck(connection.socket::close);
         connectionsMap.remove(clientId);
     }
-    private <T> Function1<Boolean, Message<T>>       decorated          (Function1<Boolean, Message<T>> handler) {
+    private <T> Function1<Boolean, Message<T>>       decorate           (Function1<Boolean, Message<T>> handler) {
         return req -> {
             req.stamps.add(getMyAddress());
             return handler.apply(req);
@@ -129,6 +130,10 @@ public class Server {
     public final Awaitable<Void>        stopAccept      () {
 
         return netServer.stop();
+    }
+    public final Iterable<UUID>         getClientIds    () {
+
+        return I.of(connectionsMap.keySet());
     }
     public final Iterable<InetSocketAddress> getAddressesLazy() {
 

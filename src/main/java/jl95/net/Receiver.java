@@ -13,40 +13,14 @@ import static jl95.lang.SuperPowers.uncheck;
 import jl95.lang.*;
 import jl95.lang.variadic.*;
 
-public abstract class Receiver<T> {
-
-    public interface RecvOptions<T> {
-
-        void    afterStop          (Receiver<T> self);
-        void    onException        (Receiver<T> self, Exception   ex);
-        void    onIoException      (Receiver<T> self, IOException ex);
-        void    onProtocolException(Receiver<T> self, Exception   ex);
-        void    onInputTimeout     (Receiver<T> self);
-        Integer inputRetryTimeoutMs();
-
-        class Editable<T> implements RecvOptions<T> {
-
-            public Method1<Receiver<T>>              afterStop           = (self) -> {};
-            public Method2<Receiver<T>, Exception>   excHandler          = (self, ex) -> System.out.println(format("Error while handling incoming: %s", ex));
-            public Method2<Receiver<T>, IOException> ioExcHandler        = (self, ex) -> System.out.println(format("Error while reading incoming: %s", ex));
-            public Method2<Receiver<T>, Exception>   protocolExcHandler  = (self, ex) -> System.out.println(format("Error while deserializing incoming: %s", ex));
-            public Method1<Receiver<T>>              inputTimeoutHandler = (self) ->  {};
-            public Function0<Integer>                inputRetryTimeoutMs = constant(50);
-
-            @Override public void afterStop          (Receiver<T> self) { afterStop.accept(self); }
-            @Override public void onException        (Receiver<T> self, Exception   ex) { excHandler        .accept(self, ex); }
-            @Override public void onIoException      (Receiver<T> self, IOException ex) { ioExcHandler      .accept(self, ex); }
-            @Override public void onProtocolException(Receiver<T> self, Exception   ex) { protocolExcHandler.accept(self, ex); }
-            @Override public void onInputTimeout     (Receiver<T> self) { inputTimeoutHandler.accept(self); }
-            @Override public Integer inputRetryTimeoutMs() { return inputRetryTimeoutMs.apply(); }
-        }
-        static <T> RecvOptions<T> defaults() {
-            return new Editable<>();
-        }
-    }
+public class Receiver implements ReceiverIf<byte[]> {
 
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotYetReceivingException  extends RuntimeException {}
+
+    public static Receiver of(InputStream is) {
+        return new Receiver(is);
+    }
 
     private final InputStream             in;
     private       Boolean                 isReceiving = false;
@@ -54,14 +28,13 @@ public abstract class Receiver<T> {
     private       CompletableFuture<Void> startFuture;
     private       CompletableFuture<Void> stopFuture;
 
-    protected abstract T fromBytes(byte[] incoming);
-
-    public Receiver(InputStream is) {
+    private Receiver(InputStream is) {
         this.in = is;
     }
 
-    synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue,
-                                                            RecvOptions<T>        options) {
+    @Override
+    synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, byte[]> incomingCbToContinue,
+                                                            RecvOptions options) {
         if (isReceiving) {
             throw new AlreadyReceivingException();
         }
@@ -72,42 +45,43 @@ public abstract class Receiver<T> {
         new Thread(() -> {
             startFuture.complete(null);
             while (!toStop) {
-                byte[] incomingAsBytes;
+                byte[] incoming;
                 try {
                     try {
                         if (in.available() == 0) {
-                            options.onInputTimeout(this);
+                            options.onInputTimeout();
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
                         var sizeSize        = in.read();
                         if (sizeSize == -1) {
-                            options.onInputTimeout(this);
+                            options.onInputTimeout();
                             sleep(options.inputRetryTimeoutMs());
                             continue;
                         }
                         var sizeAsBytes     = new byte[sizeSize];
                         in.read(sizeAsBytes, 0, sizeSize);
                         var size            = new java.math.BigInteger(sizeAsBytes).intValue();
-                        incomingAsBytes     = new byte[size];
-                        in.read(incomingAsBytes, 0, size);
+                        incoming            = new byte[size];
+                        in.read(incoming, 0, size);
                     }
                     catch (IOException ex) {
-                        options.onIoException(this, ex);
+                        options.onIoException(ex);
                         break;
                     }
                     catch (Exception   ex) {
-                        options.onProtocolException(this, ex);
+                        options.onProtocolException(ex);
                         break;
                     }
                     try {
-                        var toContinue = incomingCbToContinue.apply(fromBytes(incomingAsBytes));
+                        var toContinue = incomingCbToContinue.apply(incoming);
                         if (!toContinue) {
                             toStop = true;
                         }
                     }
                     catch (Exception ex) {
-                        options.onException(this, ex);
+                        options.onHandlingException(ex);
+                        continue;
                     }
                 }
                 catch (Exception ex) {
@@ -118,35 +92,11 @@ public abstract class Receiver<T> {
             }
             isReceiving = false;
             stopFuture.complete(null);
-            options.afterStop(this);
+            options.afterStop();
         }).start();
         return Awaitable.of(startFuture);
     }
-    synchronized public final Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
-
-        return recvWhile(incomingCbToContinue, RecvOptions.defaults());
-    }
-    synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb,
-                                                            RecvOptions<T>        options) {
-        return recvWhile(incoming -> {
-            incomingCb.accept(incoming);
-            return true;
-        }, options);
-    }
-    synchronized public final Awaitable<Void> recv         (Method1<T>            incomingCb) {
-
-        return recv(incomingCb, RecvOptions.defaults());
-    }
-    synchronized public final Awaitable<Void> recvOnce     (Method1<T>            incomingCb,
-                                                            RecvOptions<T>        options) {
-        return recvWhile(incoming -> {
-            incomingCb.accept(incoming);
-            return false;
-        }, options);
-    }
-    synchronized public final Awaitable<Void> recvOnce     (Method1<T>            incomingCb) {
-        return recvOnce(incomingCb, RecvOptions.defaults());
-    }
+    @Override
     synchronized public final Awaitable<Void> recvStop     () {
 
         if (!isReceiving) {
@@ -156,17 +106,10 @@ public abstract class Receiver<T> {
         return Awaitable.of(stopFuture);
     }
 
+    @Override
     public final Boolean           isReceiving   () {
         return isReceiving;
     }
+    @Override
     public final InputStream       getInputStream() { return in; }
-    public final <T2> Receiver<T2> adapted(Function1<T2, T> adapterFunction) {
-
-        return new Receiver<>(in) {
-
-            @Override protected T2 fromBytes(byte[] incoming) {
-                return adapterFunction.apply(Receiver.this.fromBytes(incoming));
-            }
-        };
-    }
 }

@@ -6,72 +6,70 @@ import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
 import jl95.net.Ios;
 import jl95.net.Receiver;
-import jl95.net.ReceiversCollection;
+import jl95.net.ReceiverIf;
 import jl95.net.Sender;
-import jl95.net.SendersCollections;
+import jl95.net.SenderIf;
 import jl95.rpc.util.Request;
 import jl95.rpc.util.serdes.ResponseJsonSerdes;
 import jl95.rpc.util.serdes.RequestJsonSerdes;
 import jl95.rpc.util.Response;
 import jl95.rpc.util.SerdesDefaults;
 
-public abstract class Responder<A, R> {
+public class Responder implements ResponderIf<byte[], byte[]> {
 
     public static class StartWhenAlreadyRunningException extends RuntimeException {}
     public static class StopWhenNotRunningException      extends RuntimeException {}
 
-    private final Receiver<Request>  receiver;
-    private final Sender  <Response> sender;
+    public static Responder fromSr(ReceiverIf<byte[]> receiver,
+                                   SenderIf  <byte[]> sender) {
+        return new Responder(receiver.adaptedReceiver(SerdesDefaults.stringFromBytes)
+                                     .adaptedReceiver(SerdesDefaults.jsonFromString)
+                                     .adaptedReceiver(RequestJsonSerdes::fromJson),
+                             sender  .adaptedSender(SerdesDefaults.stringToBytes)
+                                     .adaptedSender(SerdesDefaults.jsonToString)
+                                     .adaptedSender(ResponseJsonSerdes::toJson));
+    }
+    public static Responder fromIo(Ios ios) {
 
-    protected abstract A      readRequest  (byte[] serial);
-    protected abstract byte[] writeResponse(R      object);
+        return fromSr(Receiver.of(ios.getInputStream ()),
+                       Sender  .of(ios.getOutputStream()));
+    }
 
-    private Responder(Receiver<Request>  receiver,
-                      Sender  <Response> sender) {
+    private final ReceiverIf<Request>  receiver;
+    private final SenderIf  <Response> sender;
+
+    private Responder(ReceiverIf<Request>  receiver,
+                      SenderIf  <Response> sender) {
         this.receiver = receiver;
         this.sender   = sender;
     }
-    public  Responder(Ios ios) {
 
-        this.receiver = ReceiversCollection.getBytesReceiver(ios.getInputStream ()).adapted(SerdesDefaults.stringFromBytes).adapted(SerdesDefaults.jsonFromString).adapted(RequestJsonSerdes ::fromJson);
-        this.sender   = SendersCollections.getBytesSender  (ios.getOutputStream()).adapted(SerdesDefaults.stringToBytes)  .adapted(SerdesDefaults.jsonToString)  .adapted(ResponseJsonSerdes::toJson);
-    }
-
-    synchronized public Awaitable<Void> start    (Function1<R, A> responseFunction) {
+    @Override
+    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
 
         if (isRunning()) throw new StartWhenAlreadyRunningException();
         return receiver.recvWhile(request -> {
 
-            var requestPayloadObject = readRequest(request.payload);
-            var responsePayloadObject   = responseFunction.apply(requestPayloadObject);
+            var requestObject  = request.payload;
+            var responseObject = responseFunction.apply(requestObject);
             var response       = new Response();
             response.id        = UUID.randomUUID();
             response.requestId = request.id;
-            response.payload   = writeResponse(responsePayloadObject);
+            response.payload   = responseObject.a1;
             sender.send(response);
-            return true;
+            return responseObject.a2;
         });
     }
-    synchronized public Awaitable<Void> stop     () {
+    @Override
+    synchronized public Awaitable<Void> stop() {
 
         if (!isRunning()) throw new StopWhenNotRunningException();
         return receiver.recvStop();
     }
-    synchronized public Boolean         isRunning() {
+
+    @Override
+    public Boolean isRunning() {
 
         return receiver.isReceiving();
     }
-    public final <A2, R2> Responder<A2, R2> adapted(Function1<A2, A> argAdapter,
-                                                    Function1<R, R2> reAdapter) {
-        return new Responder<A2, R2>(receiver, sender) {
-
-            @Override protected A2     readRequest  (byte[] serial) {
-                return argAdapter.apply(Responder.this.readRequest(serial));
-            }
-            @Override protected byte[] writeResponse(R2     object) {
-                return Responder.this.writeResponse(reAdapter.apply(object));
-            }
-        };
-    }
-
 }
