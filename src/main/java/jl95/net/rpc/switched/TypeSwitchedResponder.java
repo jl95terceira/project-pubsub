@@ -18,7 +18,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], by
     public static class DefaultNotSetException extends RuntimeException {}
 
     public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<byte[], byte[]> responder) {
-        return new TypeSwitchedResponder(ResponderAdaptersCollection.asJsonResponder(responder).adapted(
+        return new TypeSwitchedResponder(ResponderAdaptersCollection.asJsonPostGetResponder(responder).adapted(
             TypedPayloadJsonSerdes::fromJson,
             TypedPayloadJsonSerdes::toJson
         ));

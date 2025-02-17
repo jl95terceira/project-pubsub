@@ -57,7 +57,7 @@ public class Member implements MemberIf<byte[], byte[]> {
             this.sender         = Sender.of(ios.getOutputStream());
             this.receiver       = Receiver.of(ios.getInputStream());
             this.jsonSender     = SenderAdaptersCollections.asJsonSender(sender);
-            this.memberRegRequester = RequesterAdaptersCollection.asStringRequester(Requester.fromIo(ios));
+            this.memberRegRequester = RequesterAdaptersCollection.asStringPostGetRequester(Requester.fromIo(ios));
             this.pubSender      = jsonSender.adaptedSender(SerdesDefaults.pubMsgToJson);
             this.closeSender    = jsonSender.adaptedSender(SerdesDefaults.closeReqToJson);
             this.subListSender  = jsonSender.adaptedSender(SerdesDefaults.subListReqToJson);

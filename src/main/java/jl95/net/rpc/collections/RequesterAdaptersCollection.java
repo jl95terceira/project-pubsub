@@ -8,38 +8,53 @@ import jl95.net.rpc.util.SerdesDefaults;
 
 public class RequesterAdaptersCollection {
 
-    public static RequesterIf<String,    String> asStringRequester(RequesterIf<byte[], byte[]> requester) {
+    public static RequesterIf<String,    String>    asStringPostGetRequester(RequesterIf<byte[], byte[]> requester) {
 
         return requester.adapted(
             SerdesDefaults.stringToBytes,
             SerdesDefaults.stringFromBytes
         );
     }
-    public static RequesterIf     <String,    Void> asStringPutter(RequesterIf<byte[], byte[]> requester) {
+    public static RequesterIf<String,    Void>      asStringPostRequester   (RequesterIf<byte[], byte[]> requester) {
 
         return requester.adapted(
             SerdesDefaults.stringToBytes,
             x -> null
         );
     }
-    public static RequesterIf     <JsonValue, JsonValue> asJsonRequester(RequesterIf<byte[], byte[]> requester) {
+    public static RequesterIf<Void,      String>    asStringGetRequester    (RequesterIf<byte[], byte[]> requester) {
 
-        return asStringRequester(requester).adapted(
+        return requester.adapted(
+            x -> new byte[1],
+            SerdesDefaults.stringFromBytes
+        );
+    }
+    public static RequesterIf<JsonValue, JsonValue> asJsonPostGetRequester  (RequesterIf<byte[], byte[]> requester) {
+
+        return asStringPostGetRequester(requester).adapted(
             SerdesDefaults.jsonToString,
             SerdesDefaults.jsonFromString
         );
     }
-    public static RequesterIf     <JsonValue, Void> asJsonPutter(RequesterIf<byte[], byte[]> requester) {
+    public static RequesterIf<JsonValue, Void>      asJsonPostRequester     (RequesterIf<byte[], byte[]> requester) {
 
-        return asStringPutter(requester).adapted(
+        return asStringPostRequester(requester).adapted(
             SerdesDefaults.jsonToString,
-            x -> null
+            x -> x
         );
     }
-    public static TypedRequesterIf<String,    String> asTypedStringRequester(TypedRequesterIf<byte[], byte[]> requester) {
+    public static RequesterIf<Void, JsonValue>      asJsonGetRequester      (RequesterIf<byte[], byte[]> requester) {
+
+        return asStringGetRequester(requester).adapted(
+            x -> x,
+            SerdesDefaults.jsonFromString
+        );
+    }
+
+    public static TypedRequesterIf<String,    String>    asTypedStringRequester(TypedRequesterIf<byte[], byte[]> requester) {
         return requester.adapted(SerdesDefaults.stringToBytes, SerdesDefaults.stringFromBytes);
     }
-    public static TypedRequesterIf<JsonValue, JsonValue> asTypedJsonRequester(TypedRequesterIf<byte[], byte[]> requester) {
+    public static TypedRequesterIf<JsonValue, JsonValue> asTypedJsonRequester  (TypedRequesterIf<byte[], byte[]> requester) {
         return asTypedStringRequester(requester).adapted(SerdesDefaults.jsonToString, SerdesDefaults.jsonFromString);
     }
 }

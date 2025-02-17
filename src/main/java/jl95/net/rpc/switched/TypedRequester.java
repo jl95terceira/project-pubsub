@@ -12,7 +12,7 @@ public class TypedRequester implements TypedRequesterIf<byte[], byte[]> {
 
     public static TypedRequester fromSimpleRpc(RequesterIf<byte[], byte[]> requester) {
 
-        return new TypedRequester(RequesterAdaptersCollection.asJsonRequester(requester).adapted(
+        return new TypedRequester(RequesterAdaptersCollection.asJsonPostGetRequester(requester).adapted(
             TypedPayloadJsonSerdes::toJson,
             TypedPayloadJsonSerdes::fromJson
         ));

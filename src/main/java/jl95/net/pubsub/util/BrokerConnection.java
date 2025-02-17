@@ -46,7 +46,7 @@ public class BrokerConnection {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.responder      = Responder.fromIo(ios);
-        this.clientRegResponder = ResponderAdaptersCollection.asStringResponder(responder);
+        this.clientRegResponder = ResponderAdaptersCollection.asStringPostGetResponder(responder);
         this.receiver       = Receiver.of(ios.getInputStream());
         this.jsonReceiver   = ReceiverAdaptersCollection.asJsonReceiver(receiver);
         this.sender         = Sender  .of(ios.getOutputStream());
