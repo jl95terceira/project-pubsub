@@ -33,14 +33,14 @@ public class BrokerConnection {
     private      Boolean queueIsOn      = false;
     private      Boolean queueToStop    = false;
 
-    public final Socket                             socket;
-    public final Sender sender;
+    public final Socket                         socket;
+    public final Sender                         sender;
     public final SenderIf<Message<Publication>> pubSender;
-    public final Receiver receiver;
-    public final ReceiverIf<JsonValue> jsonReceiver;
-    public final Responder                          responder;
-    public final ResponderIf<String, String>        clientRegResponder;
-    public       Subscription                       subscription = (topic) -> false;
+    public final Receiver                       receiver;
+    public final ReceiverIf<JsonValue>          jsonReceiver;
+    public final Responder                      responder;
+    public final ResponderIf<String, String>    clientRegResponder;
+    public       Subscription                   subscription = (topic) -> false;
 
     public BrokerConnection(Socket socket) {
         this.socket         = socket;
