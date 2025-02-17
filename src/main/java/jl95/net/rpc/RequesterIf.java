@@ -1,5 +1,6 @@
 package jl95.net.rpc;
 
+import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.io.InputStream;
@@ -33,14 +34,14 @@ public interface RequesterIf<A, R> {
     OutputStream getOutputStream();
 
     default R apply(A requestObject) { return apply(requestObject, SendOptions.defaults()); }
-    default <A2, R2> RequesterIf<A2, R2> adapted(Function1<A, A2> reqAdapter,
-                                                 Function1<R2, R> resAdapter) {
+    default <A2, R2> RequesterIf<A2, R2> adapted        (Function1<A, A2> requestAdapter,
+                                                         Function1<R2, R> responseAdapter) {
         return new RequesterIf<>() {
 
             @Override public R2           apply          (A2 requestObject, SendOptions options) {
-                var adaptedRequestObject = reqAdapter.apply(requestObject);
+                var adaptedRequestObject = requestAdapter.apply(requestObject);
                 var reponseObject = RequesterIf.this.apply(adaptedRequestObject, options);
-                return resAdapter.apply(reponseObject);
+                return responseAdapter.apply(reponseObject);
             }
             @Override public InputStream  getInputStream () {
                 return RequesterIf.this.getInputStream();
@@ -49,5 +50,13 @@ public interface RequesterIf<A, R> {
                 return RequesterIf.this.getOutputStream();
             }
         };
+    }
+    default <A2>     RequesterIf<A2, R>  adaptedRequest (Function1<A, A2> requestAdapter) {
+
+        return adapted(requestAdapter, self::apply);
+    }
+    default <R2>     RequesterIf<A, R2>  adaptedResponse(Function1<R2, R> responseAdapter) {
+
+        return adapted(self::apply, responseAdapter);
     }
 }

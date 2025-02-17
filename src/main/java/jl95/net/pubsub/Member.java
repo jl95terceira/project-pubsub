@@ -38,47 +38,47 @@ import jl95.net.rpc.collections.RequesterAdaptersCollection;
 
 public class Member implements MemberIf<byte[], byte[]> {
 
-    private static class SenderIfs {
+    private class BrokerIf {
 
+        private final Sender                                sender;
+        private final Receiver                              receiver;
         private final SenderIf<JsonValue>                   jsonSender;
+        private final RequesterIf<String, String>           memberRegRequester;
         private final SenderIf<Message<Publication>>        pubSender;
         private final SenderIf<Message<Close>>              closeSender;
         private final SenderIf<Message<SubscriptionByList>> subListSender;
         private final SenderIf<Message<SubscriptionByRegex>>subReSender;
         private final SenderIf<Message<SubscriptionToAll>>  subAllSender;
         private final SenderIf<Message<SubscriptionToNone>> subNoneSender;
+        private final ReceiverIf<JsonValue>                 jsonReceiver;
 
-        public SenderIfs(Sender sender) {
-            this.jsonSender    = SenderAdaptersCollections.asJsonSender(sender);
-            this.pubSender     = jsonSender.adaptedSender(SerdesDefaults.pubMsgToJson);
-            this.closeSender   = jsonSender.adaptedSender(SerdesDefaults.closeReqToJson);
-            this.subListSender = jsonSender.adaptedSender(SerdesDefaults.subListReqToJson);
-            this.subReSender   = jsonSender.adaptedSender(SerdesDefaults.subRegexReqToJson);
-            this.subAllSender  = jsonSender.adaptedSender(SerdesDefaults.subAllReqToJson);
-            this.subNoneSender = jsonSender.adaptedSender(SerdesDefaults.subNoneReqToJson);
+        public BrokerIf() {
+
+            this.sender         = Sender.of(ios.getOutputStream());
+            this.receiver       = Receiver.of(ios.getInputStream());
+            this.jsonSender     = SenderAdaptersCollections.asJsonSender(sender);
+            this.memberRegRequester = RequesterAdaptersCollection.asStringRequester(Requester.fromIo(ios));
+            this.pubSender      = jsonSender.adaptedSender(SerdesDefaults.pubMsgToJson);
+            this.closeSender    = jsonSender.adaptedSender(SerdesDefaults.closeReqToJson);
+            this.subListSender  = jsonSender.adaptedSender(SerdesDefaults.subListReqToJson);
+            this.subReSender    = jsonSender.adaptedSender(SerdesDefaults.subRegexReqToJson);
+            this.subAllSender   = jsonSender.adaptedSender(SerdesDefaults.subAllReqToJson);
+            this.subNoneSender  = jsonSender.adaptedSender(SerdesDefaults.subNoneReqToJson);
+            this.jsonReceiver  = ReceiverAdaptersCollection.asJsonReceiver(receiver);
         }
-
     }
 
     private final CloseableIos                          ios;
     private final UUID                                  memberId = UUID.randomUUID();
     private final Method0                               closer;
-    private final Sender                                sender;
-    private final SenderIfs                             senderIfs;
-    private final RequesterIf<String, String>           memberRegRequester;
-    private final Receiver                              receiver;
-    private final ReceiverIf<JsonValue>                 jsonReceiver;
+    private final BrokerIf                              brokerIf;
     private final MessageSwitchedDeserializer<Boolean>  switchDeser;
     private       Method1<Publication>                  pubCallback = (pub) -> {/* pass */};
 
     private Member(CloseableIos      ios) {
         this.ios    = ios;
         this.closer = unchecked(ios::close);
-        this.sender     = Sender.of(ios.getOutputStream());
-        this.senderIfs  = new SenderIfs(sender);
-        this.receiver   = Receiver.of(ios.getInputStream());
-        this.memberRegRequester = RequesterAdaptersCollection.asStringRequester(Requester.fromIo(ios));
-        this.jsonReceiver  = ReceiverAdaptersCollection.asJsonReceiver(receiver);
+        this.brokerIf = new BrokerIf();
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(
             MessageType.PUBLISH.serial,
@@ -88,7 +88,7 @@ public class Member implements MemberIf<byte[], byte[]> {
                 return true;
             }
         );
-        memberRegRequester.apply(memberId.toString());
+        brokerIf.memberRegRequester.apply(memberId.toString());
     }
     private Member(Socket            clientSocket) {
         this(CloseableIos.fromSocketLazy(clientSocket));
@@ -104,7 +104,7 @@ public class Member implements MemberIf<byte[], byte[]> {
     }
     synchronized private     void produce    (Publication          pub) {
 
-        sendMessage(pub, senderIfs.pubSender);
+        sendMessage(pub, brokerIf.pubSender);
     }
     synchronized private     void onConsumed (Method1<Publication> pubCallback) {
 
@@ -130,17 +130,17 @@ public class Member implements MemberIf<byte[], byte[]> {
     @Override
     synchronized public final void            consume         () {
 
-        jsonReceiver.recvWhile(switchDeser);
+        brokerIf.jsonReceiver.recvWhile(switchDeser);
     }
     @Override
     synchronized public final Awaitable<Void> consumeStop     () {
 
-        return jsonReceiver.recvStop();
+        return brokerIf.jsonReceiver.recvStop();
     }
     @Override
     synchronized public final Boolean         isConsuming     () {
 
-        return jsonReceiver.isReceiving();
+        return brokerIf.jsonReceiver.isReceiving();
     }
     @Override
     synchronized public final void            onConsumed      (Method2<String, byte[]> pubCallback) {
@@ -153,7 +153,7 @@ public class Member implements MemberIf<byte[], byte[]> {
     public final UUID getMemberId() { return memberId; }
     public final void close           () {
 
-        sendMessage(new Close(), senderIfs.closeSender);
+        sendMessage(new Close(), brokerIf.closeSender);
         closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
@@ -163,7 +163,7 @@ public class Member implements MemberIf<byte[], byte[]> {
 
         var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
-        sendMessage(sub, senderIfs.subListSender);
+        sendMessage(sub, brokerIf.subListSender);
     }
     public final void subscribeByList (Iterable<String>    topicNames) {
 
@@ -176,7 +176,7 @@ public class Member implements MemberIf<byte[], byte[]> {
 
         var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
-        sendMessage(sub, senderIfs.subReSender);
+        sendMessage(sub, brokerIf.subReSender);
     }
     public final void subscribeByRegex(String              topicPattern) {
 
@@ -187,13 +187,13 @@ public class Member implements MemberIf<byte[], byte[]> {
     }
     public final void subscribeToAll  () {
 
-        sendMessage(new SubscriptionToAll(), senderIfs.subAllSender);
+        sendMessage(new SubscriptionToAll(), brokerIf.subAllSender);
     }
     public final void subscribe       (SubscriptionToNone  sub) {
         subscribeToNone();
     }
     public final void subscribeToNone () {
 
-        sendMessage(new SubscriptionToNone(), senderIfs.subNoneSender);
+        sendMessage(new SubscriptionToNone(), brokerIf.subNoneSender);
     }
 }
