@@ -24,7 +24,7 @@ import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
 
-public class ServerConnection {
+public class BrokerConnection {
 
     private final BlockingQueue<Message<Publication>>
                          queue          = new ArrayBlockingQueue<>(20);
@@ -42,7 +42,7 @@ public class ServerConnection {
     public final ResponderIf<String, String>        clientRegResponder;
     public       Subscription                       subscription = (topic) -> false;
 
-    public ServerConnection(Socket socket) {
+    public BrokerConnection(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.responder      = Responder.fromIo(ios);

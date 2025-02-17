@@ -14,7 +14,7 @@ import jl95.lang.StrictMap;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.util.Message;
-import jl95.net.pubsub.util.ServerConnection;
+import jl95.net.pubsub.util.BrokerConnection;
 import jl95.net.io.Receiver;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
@@ -30,7 +30,7 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 
 public class Broker {
 
-    private final StrictMap<UUID, ServerConnection> connectionsMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerConnection> connectionsMap = StrictMap.of(new ConcurrentHashMap<>());
     private final jl95.net.Server                   netServer;
 
     public Broker(ServerSocket      socket) {
@@ -46,7 +46,7 @@ public class Broker {
         return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
     }
     private void                                     onAccept           (Socket socket) {
-        var connection = new ServerConnection(socket);
+        var connection = new BrokerConnection(socket);
         // receive client ID and put in connections map
         var clientIdFuture = new CompletableFuture<String>();
         connection.clientRegResponder.respondOnce(clientId -> {
@@ -87,7 +87,7 @@ public class Broker {
         connection.jsonReceiver.recvWhile(switchingDeser, recvOptions);
         connection.startQueue();
     }
-    private ServerConnection                         getConnection      (UUID memberId) {
+    private BrokerConnection getConnection      (UUID memberId) {
         return connectionsMap.get(memberId);
     }
     private void                                     closeConnection    (UUID memberId) {
@@ -104,15 +104,15 @@ public class Broker {
             return handler.apply(req);
         };
     }
-    private Function1<Boolean, Message<Close>>       getCloseReqHandler (ServerConnection connection) { return req -> false; }
+    private Function1<Boolean, Message<Close>>       getCloseReqHandler (BrokerConnection connection) { return req -> false; }
     private <S extends Subscription>
-            Function1<Boolean, Message<S>>           getSubReqHandler   (ServerConnection connection) {
+            Function1<Boolean, Message<S>>           getSubReqHandler   (BrokerConnection connection) {
         return req -> {
             connection.subscription = req.body;
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>> getPubReqHandler   (ServerConnection connection) {
+    private Function1<Boolean, Message<Publication>> getPubReqHandler   (BrokerConnection connection) {
         return req -> {
             var pub = req.body;
             for (var other: connectionsMap.values()) {
