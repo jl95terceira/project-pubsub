@@ -46,7 +46,8 @@ public class Responder implements ResponderIf<byte[], byte[]> {
     }
 
     @Override
-    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
+    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction,
+                                                     RespondOptions                             options) {
 
         if (isRunning()) throw new StartWhenAlreadyRunningException();
         return receiver.recvWhile(request -> {
@@ -59,7 +60,7 @@ public class Responder implements ResponderIf<byte[], byte[]> {
             response.payload   = responseObject.a1;
             sender.send(response);
             return responseObject.a2;
-        });
+        }, options);
     }
     @Override
     synchronized public Awaitable<Void> stop() {
