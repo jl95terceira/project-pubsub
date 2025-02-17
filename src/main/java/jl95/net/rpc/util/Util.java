@@ -11,9 +11,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import jl95.net.sr.CloseableIos;
+import jl95.net.io.CloseableIos;
 import jl95.net.Server;
-import jl95.net.sr.util.Defaults;
+import jl95.net.io.util.Defaults;
 
 public class Util {
 
@@ -36,7 +36,7 @@ public class Util {
         public static CloseableIos getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
             var clientSocketFuture = new CompletableFuture<Socket>();
-            var server = new Server(jl95.net.sr.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
+            var server = new Server(jl95.net.io.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
             server.setAcceptCb((self, socket) -> {
                 clientSocketFuture.complete(socket);
             });

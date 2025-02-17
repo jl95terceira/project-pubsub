@@ -4,6 +4,6 @@ import java.net.InetSocketAddress;
 
 public class Defaults {
 
-    public static final InetSocketAddress serverAddr            = jl95.net.sr.util.Defaults.serverAddr;
+    public static final InetSocketAddress serverAddr            = jl95.net.io.util.Defaults.serverAddr;
     public static final Integer           serverAcceptTimeoutMs = 1000;
 }

@@ -6,7 +6,6 @@ import java.util.List;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.*;
-import jl95.net.pubsub.Message;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;

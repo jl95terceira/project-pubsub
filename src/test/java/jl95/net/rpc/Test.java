@@ -4,14 +4,10 @@ import static jl95.lang.SuperPowers.*;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.net.rpc.Requester;
-import jl95.net.rpc.RequesterAdaptersCollection;
-import jl95.net.rpc.RequesterIf;
-import jl95.net.rpc.Responder;
-import jl95.net.rpc.ResponderAdaptersCollection;
-import jl95.net.rpc.ResponderIf;
+import jl95.net.rpc.collections.RequesterAdaptersCollection;
+import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.util.Defaults;
-import jl95.net.sr.CloseableIos;
+import jl95.net.io.CloseableIos;
 import jl95.net.rpc.util.Util;
 
 public class Test {
@@ -24,12 +20,12 @@ public class Test {
     @org.junit.Before
     public void setUp() throws Exception {
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
-            ioAsServer = Util.getIoAsServer(jl95.net.sr.util.Defaults.serverAddr);
+            ioAsServer = Util.getIoAsServer(jl95.net.io.util.Defaults.serverAddr);
             return RequesterAdaptersCollection.asStringRequester(Requester.fromIo(ioAsServer));
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
-            ioAsClient = Util.getIoAsClient(jl95.net.sr.util.Defaults.serverAddr);
+            ioAsClient = Util.getIoAsClient(jl95.net.io.util.Defaults.serverAddr);
             return ResponderAdaptersCollection.asStringResponder(Responder.fromIo(ioAsClient));
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();

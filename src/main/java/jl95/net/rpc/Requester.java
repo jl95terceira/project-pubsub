@@ -11,10 +11,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import jl95.net.sr.Ios;
-import jl95.net.sr.ReceiverIf;
-import jl95.net.sr.SenderIf;
-import jl95.net.sr.SrIf;
+import jl95.net.io.Ios;
+import jl95.net.io.ReceiverIf;
+import jl95.net.io.SenderIf;
+import jl95.net.io.SenderReceiverIf;
 import jl95.net.rpc.util.Request;
 import jl95.net.rpc.util.Response;
 import jl95.net.rpc.util.SerdesDefaults;
@@ -31,13 +31,13 @@ public class Requester implements RequesterIf<byte[], byte[]> {
 
     public static class ResponseTimeoutException extends RuntimeException {}
 
-    public static Requester fromSr(SrIf<byte[], byte[]> sr) {;
+    public static Requester fromSr(SenderReceiverIf<byte[], byte[]> sr) {;
         return new Requester(sr.getSender()  .adaptedSender  (SerdesDefaults.requestToBytes),
                              sr.getReceiver().adaptedReceiver(SerdesDefaults.responseFromBytes));
     }
     public static Requester fromIo(Ios ios) {
 
-        return fromSr(SrIf.of(ios));
+        return fromSr(SenderReceiverIf.fromIo(ios));
     }
 
     private final SenderIf  <Request>      sender;

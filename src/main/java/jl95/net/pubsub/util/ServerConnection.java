@@ -11,19 +11,18 @@ import java.util.concurrent.TimeUnit;
 import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
-import jl95.net.sr.Receiver;
-import jl95.net.sr.ReceiverAdaptersCollection;
-import jl95.net.sr.Sender;
-import jl95.net.sr.SenderAdaptersCollections;
-import jl95.net.sr.Ios;
-import jl95.net.sr.ReceiverIf;
-import jl95.net.sr.SenderIf;
-import jl95.net.pubsub.Message;
+import jl95.net.io.Receiver;
+import jl95.net.io.collections.ReceiverAdaptersCollection;
+import jl95.net.io.Sender;
+import jl95.net.io.collections.SenderAdaptersCollections;
+import jl95.net.io.Ios;
+import jl95.net.io.ReceiverIf;
+import jl95.net.io.SenderIf;
 import jl95.net.pubsub.Subscription;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
-import jl95.net.rpc.ResponderAdaptersCollection;
+import jl95.net.rpc.collections.ResponderAdaptersCollection;
 
 public class ServerConnection {
 

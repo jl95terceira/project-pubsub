@@ -4,7 +4,7 @@ import static jl95.lang.SuperPowers.*;
 
 import javax.json.*;
 
-import jl95.net.pubsub.Message;
+import jl95.net.pubsub.util.Message;
 import jl95.lang.variadic.*;
 import jl95.serdes.InetSocketAddressToJson;
 import jl95.serdes.ListToJson;

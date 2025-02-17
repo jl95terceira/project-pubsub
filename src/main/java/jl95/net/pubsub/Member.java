@@ -19,22 +19,22 @@ import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
 import jl95.net.pubsub.protocol.SubscriptionToAll;
 import jl95.net.pubsub.protocol.SubscriptionToNone;
-import jl95.net.sr.Receiver;
-import jl95.net.sr.ReceiverIf;
-import jl95.net.sr.ReceiverAdaptersCollection;
-import jl95.net.sr.Sender;
-import jl95.net.sr.SenderIf;
-import jl95.net.sr.SenderAdaptersCollections;
-import jl95.net.sr.SrIf;
-import jl95.net.sr.util.Util;
+import jl95.net.io.Receiver;
+import jl95.net.io.ReceiverIf;
+import jl95.net.io.collections.ReceiverAdaptersCollection;
+import jl95.net.io.Sender;
+import jl95.net.io.SenderIf;
+import jl95.net.io.collections.SenderAdaptersCollections;
+import jl95.net.io.util.Util;
+import jl95.net.pubsub.util.Message;
 import jl95.net.pubsub.util.serdes.MessageSwitchedDeserializer;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.MessageType;
 import jl95.net.pubsub.util.SerdesDefaults;
-import jl95.net.sr.CloseableIos;
+import jl95.net.io.CloseableIos;
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
-import jl95.net.rpc.RequesterAdaptersCollection;
+import jl95.net.rpc.collections.RequesterAdaptersCollection;
 
 public class Member implements MemberIf<byte[], byte[]> {
 
@@ -77,7 +77,7 @@ public class Member implements MemberIf<byte[], byte[]> {
         this.sender     = Sender.of(ios.getOutputStream());
         this.senderIfs  = new SenderIfs(sender);
         this.receiver   = Receiver.of(ios.getInputStream());
-        this.memberRegRequester = RequesterAdaptersCollection.asStringRequester(Requester.fromSr(SrIf.of(ios)));
+        this.memberRegRequester = RequesterAdaptersCollection.asStringRequester(Requester.fromIo(ios));
         this.jsonReceiver  = ReceiverAdaptersCollection.asJsonReceiver(receiver);
         this.switchDeser   = new MessageSwitchedDeserializer<>();
         switchDeser.addCase(

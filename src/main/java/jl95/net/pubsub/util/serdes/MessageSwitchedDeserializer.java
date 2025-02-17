@@ -8,7 +8,7 @@ import java.util.UUID;
 import javax.json.JsonValue;
 
 import jl95.lang.I;
-import jl95.net.pubsub.Message;
+import jl95.net.pubsub.util.Message;
 import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.lang.variadic.Function1;
 import jl95.serdes.InetSocketAddressFromJson;

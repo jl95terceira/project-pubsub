@@ -6,10 +6,10 @@ import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.util.serdes.RequestJsonSerdes;
 import jl95.net.rpc.util.serdes.ResponseJsonSerdes;
-import jl95.net.sr.Ios;
-import jl95.net.sr.ReceiverIf;
-import jl95.net.sr.SenderIf;
-import jl95.net.sr.SrIf;
+import jl95.net.io.Ios;
+import jl95.net.io.ReceiverIf;
+import jl95.net.io.SenderIf;
+import jl95.net.io.SenderReceiverIf;
 import jl95.net.rpc.util.Request;
 import jl95.net.rpc.util.Response;
 import jl95.net.rpc.util.SerdesDefaults;
@@ -19,7 +19,7 @@ public class Responder implements ResponderIf<byte[], byte[]> {
     public static class StartWhenAlreadyRunningException extends RuntimeException {}
     public static class StopWhenNotRunningException      extends RuntimeException {}
 
-    public static Responder fromSr(SrIf<byte[], byte[]> sr) {
+    public static Responder fromSr(SenderReceiverIf<byte[], byte[]> sr) {
         return new Responder(
             sr.getReceiver()
                 .adaptedReceiver(SerdesDefaults.stringFromBytes)
@@ -33,7 +33,7 @@ public class Responder implements ResponderIf<byte[], byte[]> {
     }
     public static Responder fromIo(Ios ios) {
 
-        return fromSr(SrIf.of(ios));
+        return fromSr(SenderReceiverIf.fromIo(ios));
     }
 
     private final ReceiverIf<Request>  receiver;
