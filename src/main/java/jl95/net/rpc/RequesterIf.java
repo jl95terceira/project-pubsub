@@ -11,7 +11,7 @@ import jl95.net.rpc.util.Defaults;
 
 public interface RequesterIf<A, R> {
 
-    public interface SendOptions {
+    interface SendOptions {
 
         Integer getResponseTimeoutMs();
         void    onOutOfSync         ();
