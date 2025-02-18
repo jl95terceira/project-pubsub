@@ -76,21 +76,23 @@ public class Broker {
         );
         var recvOptions = new Receiver.RecvOptions.Editable();
         recvOptions.afterStop = () -> {
-            uncheck(connection.socket::close);
-            connectionsMap.remove(clientId);
+            closeConnection(clientId);
         };
-        connection.jsonReceiver.recvWhile(switchingDeser, recvOptions);
-        connection.startQueue();
+        connection.startRespond(switchingDeser, recvOptions);
+        connection.startPubQueue();
     }
     private BrokerConnection                         getConnection      (UUID memberId) {
         return connectionsMap.get(memberId);
     }
     private void                                     closeConnection    (UUID memberId) {
         var connection = connectionsMap.get(memberId);
-        if (connection.isQueueRunning()) {
-            connection.stopQueue().await();
+        if (connection.isPubQueueRunning()) {
+            connection.stopPubQueue().await();
         }
-        uncheck(connection.socket::close);
+        if (connection.isResponding()) {
+            connection.stopRespond();
+        }
+        uncheck(connection.getSocket()::close);
         connectionsMap.remove(memberId);
     }
     private <T> Function1<Boolean, Message<T>>       decorate           (Function1<Boolean, Message<T>> handler) {
@@ -103,7 +105,7 @@ public class Broker {
     private <S extends Subscription>
             Function1<Boolean, Message<S>>           getSubReqHandler   (BrokerConnection connection) {
         return req -> {
-            connection.subscription = req.body;
+            connection.setSubscription(req.body);
             return true;
         };
     }
@@ -111,7 +113,7 @@ public class Broker {
         return req -> {
             var pub = req.body;
             for (var other: connectionsMap.values()) {
-                if (other.subscription.accepts(pub.topicName)) {
+                if (other.getSubscription().accepts(pub.topicName)) {
                     other.pub(req);
                 }
             }
@@ -134,7 +136,7 @@ public class Broker {
     public final Iterable<InetSocketAddress> getAddressesLazy() {
 
         return I.of(connectionsMap.values())
-                 .map(v -> v.socket)
+                 .map(BrokerConnection::getSocket)
                  .map(socket -> new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
     }
     public final Set<InetSocketAddress> getAddresses    () {
@@ -143,12 +145,12 @@ public class Broker {
     }
     public final Subscription           getSubscription (UUID memberId) {
 
-        return getConnection(memberId).subscription;
+        return getConnection(memberId).getSubscription();
     }
     public final void                   setSubscription (UUID memberId,
                                                          Subscription subscription) {
 
-        getConnection(memberId).subscription = subscription;
+        getConnection(memberId).setSubscription(subscription);
     }
     public final void                   closeConnections() {
 
