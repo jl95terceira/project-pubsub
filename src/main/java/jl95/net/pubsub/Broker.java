@@ -46,13 +46,8 @@ public class Broker {
         return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
     }
     private void                                     onAccept           (Socket socket) {
-        var connection = new BrokerConnection(socket);
-        // receive client ID and put in connections map
         var clientIdFuture = new CompletableFuture<String>();
-        connection.stringResponder.respondOnce(clientId -> {
-            clientIdFuture.complete(clientId);
-            return null;
-        });
+        var connection     = new BrokerConnection(socket, clientIdFuture::complete);
         var clientId = UUID.fromString(uncheck(() -> clientIdFuture.get()));
         connectionsMap.put(clientId, connection);
         // ...

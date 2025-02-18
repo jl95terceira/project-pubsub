@@ -40,20 +40,25 @@ public class BrokerConnection {
     public final Socket                         socket;
     public final SenderIf<Message<Publication>> pubSender;
     public final ReceiverIf<JsonValue>          jsonReceiver;
-    public final ResponderIf<String,    Void>   stringResponder;
     public final ResponderIf<JsonValue, Void>   jsonResponder;
     public       Subscription                   subscription = (topic) -> false;
 
-    public BrokerConnection(Socket        socket) {
-        this.socket        = socket;
-        var ios            = Ios.fromSocketLazy(socket);
-        var sender         = Sender  .of(ios.getOutputStream());
-        var receiver       = Receiver.of(ios.getInputStream());
-        var responder      = Responder.fromIo(ios);
-        this.pubSender       = SenderAdaptersCollections .asJsonSender  (sender).adaptedSender(SerdesDefaults.pubMsgToJson);
-        this.jsonReceiver    = ReceiverAdaptersCollection.asJsonReceiver(receiver);
-        this.stringResponder = ResponderAdaptersCollection.asStringPostResponder(responder);
-        this.jsonResponder   = ResponderAdaptersCollection.asJsonPostResponder  (responder);
+    public BrokerConnection(Socket          socket,
+                            Method1<String> memberIdCb) {
+        this.socket         = socket;
+        var ios             = Ios.fromSocketLazy(socket);
+        var sender          = Sender   .of    (ios.getOutputStream());
+        var receiver        = Receiver .of    (ios.getInputStream());
+        var responder       = Responder.fromIo(ios);
+        this.pubSender      = SenderAdaptersCollections  .asJsonSender       (sender).adaptedSender(SerdesDefaults.pubMsgToJson);
+        this.jsonReceiver   = ReceiverAdaptersCollection .asJsonReceiver     (receiver);
+        this.jsonResponder  = ResponderAdaptersCollection.asJsonPostResponder(responder);
+        // receive client ID and put in connections map
+        var stringResponder = ResponderAdaptersCollection.asStringPostResponder(responder);
+        stringResponder.respondOnce(clientId -> {
+            memberIdCb.accept(clientId);
+            return null;
+        });
     }
 
     synchronized
