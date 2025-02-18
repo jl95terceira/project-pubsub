@@ -87,7 +87,7 @@ public class Broker {
         connection.jsonReceiver.recvWhile(switchingDeser, recvOptions);
         connection.startQueue();
     }
-    private BrokerConnection getConnection      (UUID memberId) {
+    private BrokerConnection                         getConnection      (UUID memberId) {
         return connectionsMap.get(memberId);
     }
     private void                                     closeConnection    (UUID memberId) {
