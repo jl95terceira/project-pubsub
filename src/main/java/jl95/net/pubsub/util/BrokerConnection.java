@@ -3,6 +3,7 @@ package jl95.net.pubsub.util;
 import static jl95.lang.SuperPowers.*;
 
 import java.net.Socket;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -11,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
+import jl95.lang.variadic.Method1;
 import jl95.net.io.Receiver;
 import jl95.net.io.collections.ReceiverAdaptersCollection;
 import jl95.net.io.Sender;
@@ -20,9 +22,11 @@ import jl95.net.io.ReceiverIf;
 import jl95.net.io.SenderIf;
 import jl95.net.pubsub.Subscription;
 import jl95.net.pubsub.protocol.Publication;
+import jl95.net.pubsub.util.serdes.MessageSwitchedDeserializer;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.serdes.StringFromJson;
 
 public class BrokerConnection {
 
@@ -34,23 +38,22 @@ public class BrokerConnection {
     private      Boolean queueToStop    = false;
 
     public final Socket                         socket;
-    public final Sender                         sender;
     public final SenderIf<Message<Publication>> pubSender;
-    public final Receiver                       receiver;
     public final ReceiverIf<JsonValue>          jsonReceiver;
-    public final Responder                      responder;
-    public final ResponderIf<String, String>    clientRegResponder;
+    public final ResponderIf<String,    Void>   stringResponder;
+    public final ResponderIf<JsonValue, Void>   jsonResponder;
     public       Subscription                   subscription = (topic) -> false;
 
-    public BrokerConnection(Socket socket) {
-        this.socket         = socket;
-        var ios             = Ios.fromSocketLazy(socket);
-        this.responder      = Responder.fromIo(ios);
-        this.clientRegResponder = ResponderAdaptersCollection.asStringPostGetResponder(responder);
-        this.receiver       = Receiver.of(ios.getInputStream());
-        this.jsonReceiver   = ReceiverAdaptersCollection.asJsonReceiver(receiver);
-        this.sender         = Sender  .of(ios.getOutputStream());
-        this.pubSender      = SenderAdaptersCollections .asJsonSender(sender).adaptedSender(SerdesDefaults.pubMsgToJson);
+    public BrokerConnection(Socket        socket) {
+        this.socket        = socket;
+        var ios            = Ios.fromSocketLazy(socket);
+        var sender         = Sender  .of(ios.getOutputStream());
+        var receiver       = Receiver.of(ios.getInputStream());
+        var responder      = Responder.fromIo(ios);
+        this.pubSender       = SenderAdaptersCollections .asJsonSender  (sender).adaptedSender(SerdesDefaults.pubMsgToJson);
+        this.jsonReceiver    = ReceiverAdaptersCollection.asJsonReceiver(receiver);
+        this.stringResponder = ResponderAdaptersCollection.asStringPostResponder(responder);
+        this.jsonResponder   = ResponderAdaptersCollection.asJsonPostResponder  (responder);
     }
 
     synchronized

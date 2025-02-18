@@ -2,7 +2,8 @@ package jl95.net.pubsub.util;
 
 public enum MessageType {
 
-    PUBLISH                  (""),
+    MEMBER                   ("member"),
+    PUBLISH                  ("pub"),
     REQ_CLOSE                ("close"),
     REQ_SUBSCRIPTION_BY_LIST ("sub-list"),
     REQ_SUBSCRIPTION_BY_REGEX("sub-regex"),

@@ -2,6 +2,7 @@ package jl95.net.pubsub.util;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 import javax.json.JsonValue;
 
@@ -41,6 +42,8 @@ public class SerdesDefaults {
     public static final Function1<JsonValue, byte[]>
                                     jsonFromBytes           = serial -> jsonFromString .call
                                                                        (stringFromBytes.call(serial));
+    public static final Function1<JsonValue, Message<UUID>>
+                                    memberMsgToJson         = MessageSerializer.get(MessageType.MEMBER                  .serial, x -> StringToJson.get().apply(x.toString()));
     public static final Function1<JsonValue, Message<Publication>>
                                     pubMsgToJson            = MessageSerializer.get(MessageType.PUBLISH                 .serial, PublicationJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<Close>>

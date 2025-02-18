@@ -49,9 +49,9 @@ public class Broker {
         var connection = new BrokerConnection(socket);
         // receive client ID and put in connections map
         var clientIdFuture = new CompletableFuture<String>();
-        connection.clientRegResponder.respondOnce(clientId -> {
+        connection.stringResponder.respondOnce(clientId -> {
             clientIdFuture.complete(clientId);
-            return clientId;
+            return null;
         });
         var clientId = UUID.fromString(uncheck(() -> clientIdFuture.get()));
         connectionsMap.put(clientId, connection);

@@ -43,7 +43,7 @@ public class Member implements MemberIf<byte[], byte[]> {
         private final Sender                                sender;
         private final Receiver                              receiver;
         private final SenderIf<JsonValue>                   jsonSender;
-        private final RequesterIf<String, String>           memberRegRequester;
+        private final RequesterIf<String, Void>             memberRequester;
         private final SenderIf<Message<Publication>>        pubSender;
         private final SenderIf<Message<Close>>              closeSender;
         private final SenderIf<Message<SubscriptionByList>> subListSender;
@@ -57,7 +57,7 @@ public class Member implements MemberIf<byte[], byte[]> {
             this.sender         = Sender.of(ios.getOutputStream());
             this.receiver       = Receiver.of(ios.getInputStream());
             this.jsonSender     = SenderAdaptersCollections.asJsonSender(sender);
-            this.memberRegRequester = RequesterAdaptersCollection.asStringPostGetRequester(Requester.fromIo(ios));
+            this.memberRequester = RequesterAdaptersCollection.asStringPostRequester(Requester.fromIo(ios));
             this.pubSender      = jsonSender.adaptedSender(SerdesDefaults.pubMsgToJson);
             this.closeSender    = jsonSender.adaptedSender(SerdesDefaults.closeReqToJson);
             this.subListSender  = jsonSender.adaptedSender(SerdesDefaults.subListReqToJson);
@@ -88,25 +88,34 @@ public class Member implements MemberIf<byte[], byte[]> {
                 return true;
             }
         );
-        brokerIf.memberRegRequester.apply(memberId.toString());
+        brokerIf.memberRequester.apply(memberId.toString());
     }
     private Member(Socket            clientSocket) {
         this(CloseableIos.fromSocketLazy(clientSocket));
     }
 
-    synchronized private <T> void sendMessage(T                    object,
-                                              SenderIf<Message<T>> sender) {
+    synchronized private <T> void sendMessage   (T object, SenderIf   <Message<T>>       sender) {
         var msg = new Message<T>();
         msg.id       = UUID.randomUUID();
         msg.body     = object;
         msg.memberId = memberId;
         sender.send(msg);
     }
-    synchronized private     void produce    (Publication          pub) {
+    synchronized private <A> void postMessage   (A object, RequesterIf<Message<A>, Void> sender) {
+        postgetMessage(object, sender);
+    }
+    synchronized private <A, R> R postgetMessage(A object, RequesterIf<Message<A>, R>    sender) {
+        var msg = new Message<A>();
+        msg.id       = UUID.randomUUID();
+        msg.body     = object;
+        msg.memberId = memberId;
+        return sender.apply(msg);
+    }
+    synchronized private     void produce       (Publication          pub) {
 
         sendMessage(pub, brokerIf.pubSender);
     }
-    synchronized private     void onConsumed (Method1<Publication> pubCallback) {
+    synchronized private     void onConsumed    (Method1<Publication> pubCallback) {
 
         if (!isConsuming()) {
             consume();
