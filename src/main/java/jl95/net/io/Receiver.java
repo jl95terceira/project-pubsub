@@ -21,11 +21,11 @@ public class Receiver implements ReceiverIf<byte[]> {
         return new Receiver(is);
     }
 
-    private final InputStream             in;
-    private       Boolean                 isReceiving = false;
-    private       Boolean                 toStop      = false;
-    private       CompletableFuture<Void> startFuture;
-    private       CompletableFuture<Void> stopFuture;
+    private final    InputStream             in;
+    private volatile Boolean                 isReceiving = false;
+    private volatile Boolean                 toStop      = false;
+    private          CompletableFuture<Void> startFuture;
+    private          CompletableFuture<Void> stopFuture;
 
     private Receiver(InputStream is) {
         this.in = is;

@@ -49,7 +49,9 @@ public class Responder implements ResponderIf<byte[], byte[]> {
     synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction,
                                                      RespondOptions                             options) {
 
-        if (isRunning()) throw new StartWhenAlreadyRunningException();
+        if (isRunning()) {
+            throw new StartWhenAlreadyRunningException();
+        }
         return receiver.recvWhile(request -> {
 
             var requestObject  = request.payload;
