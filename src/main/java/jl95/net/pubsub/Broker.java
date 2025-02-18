@@ -85,14 +85,7 @@ public class Broker {
         return connectionsMap.get(memberId);
     }
     private void                                     closeConnection    (UUID memberId) {
-        var connection = connectionsMap.get(memberId);
-        if (connection.isPubQueueRunning()) {
-            connection.stopPubQueue().await();
-        }
-        if (connection.isResponding()) {
-            connection.stopRespond();
-        }
-        uncheck(connection.getSocket()::close);
+        connectionsMap.get   (memberId).close();
         connectionsMap.remove(memberId);
     }
     private <T> Function1<Boolean, Message<T>>       decorate           (Function1<Boolean, Message<T>> handler) {

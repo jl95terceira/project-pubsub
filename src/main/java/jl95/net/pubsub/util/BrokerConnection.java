@@ -103,4 +103,13 @@ public class BrokerConnection {
     public final Socket         getSocket       () { return socket; }
     public final Subscription   getSubscription () { return subscription; }
     public final void           setSubscription (Subscription s) { subscription = s; }
+    public final void           close           () {
+        if (isPubQueueRunning()) {
+            stopPubQueue().await();
+        }
+        if (isResponding()) {
+            stopRespond();
+        }
+        uncheck(getSocket()::close);
+    }
 }
