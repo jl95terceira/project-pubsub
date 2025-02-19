@@ -2,15 +2,17 @@ package jl95.net.rpc.util;
 
 import static jl95.lang.SuperPowers.*;
 
+import javax.json.JsonValue;
+
 import jl95.lang.*;
 import jl95.lang.variadic.*;
 
 public class TypedPayload extends NamedDataClass {
 
     public String typeAlias;
-    public byte[] payload;
+    public JsonValue payload;
 
-    public TypedPayload(String typeAlias, byte[] object) {
+    public TypedPayload(String typeAlias, JsonValue object) {
         this.typeAlias = typeAlias;
         this.payload = object;
     }

@@ -10,11 +10,11 @@ public class ReceiverAdaptersCollection {
 
     private ReceiverAdaptersCollection() {}
 
-    public static ReceiverIf<String> asStringReceiver(Receiver receiver) {
+    public static ReceiverIf<String>    asStringReceiver(ReceiverIf<byte[]> receiver) {
 
         return receiver.adaptedReceiver(SerdesDefaults.stringFromBytes);
     }
-    public static ReceiverIf<JsonValue> asJsonReceiver  (Receiver receiver) {
+    public static ReceiverIf<JsonValue> asJsonReceiver  (ReceiverIf<byte[]> receiver) {
 
         return asStringReceiver(receiver).adaptedReceiver(SerdesDefaults.jsonFromString);
     }

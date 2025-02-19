@@ -5,6 +5,8 @@ import static jl95.lang.SuperPowers.tuple;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.json.JsonValue;
+
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.Responder;
@@ -15,12 +17,12 @@ import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
 
-public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], byte[]> {
+public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue, JsonValue> {
 
     public static class DefaultNotSetException extends RuntimeException {}
 
-    public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<byte[], byte[]> responder) {
-        return new TypeSwitchedResponder(ResponderAdaptersCollection.asJsonPostGetResponder(responder).adapted(
+    public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<JsonValue, JsonValue> responder) {
+        return new TypeSwitchedResponder(responder.adapted(
             TypedPayloadJsonSerdes::fromJson,
             TypedPayloadJsonSerdes::toJson
         ));
@@ -41,7 +43,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], by
 
     private TypeSwitchedResponder(ResponderIf<TypedPayload, TypedPayload> responder) {this.responder = responder;}
 
-    private Function1<Tuple2<TypedPayload, Boolean>, TypedPayload> makeCallback(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
+    private Function1<Tuple2<TypedPayload, Boolean>, TypedPayload> makeCallback(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
         return tp -> {
             var r = responseFunction.apply(tp.payload);
             return tuple(new TypedPayload(tp.typeAlias, r.a1), r.a2);
@@ -50,11 +52,11 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], by
 
     @Override
     public final void            addCaseWhile(String typeAlias,
-                                              Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
+                                              Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
         callbacksCases.put(typeAlias, makeCallback(responseFunction));
     }
     @Override
-    public final void            setDefaultCase(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
+    public final void            setDefaultCase(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
         callbacksDefault = makeCallback(responseFunction);
     }
     @Override

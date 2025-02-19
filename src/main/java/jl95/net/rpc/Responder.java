@@ -2,6 +2,8 @@ package jl95.net.rpc;
 
 import java.util.UUID;
 
+import javax.json.JsonValue;
+
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.util.serdes.RequestJsonSerdes;
@@ -14,7 +16,7 @@ import jl95.net.rpc.util.Request;
 import jl95.net.rpc.util.Response;
 import jl95.net.rpc.util.SerdesDefaults;
 
-public class Responder implements ResponderIf<byte[], byte[]> {
+public class Responder implements ResponderIf<JsonValue, JsonValue> {
 
     public static class StartWhenAlreadyRunningException extends RuntimeException {}
     public static class StopWhenNotRunningException      extends RuntimeException {}
@@ -46,8 +48,8 @@ public class Responder implements ResponderIf<byte[], byte[]> {
     }
 
     @Override
-    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction,
-                                                     RespondOptions                             options) {
+    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction,
+                                                     RespondOptions options) {
 
         if (isRunning()) {
             throw new StartWhenAlreadyRunningException();

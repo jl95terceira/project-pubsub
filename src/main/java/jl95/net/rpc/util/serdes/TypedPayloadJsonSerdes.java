@@ -21,7 +21,7 @@ public class TypedPayloadJsonSerdes {
         var job = Json.createObjectBuilder();
         for (var t: I(
             tuple(Id.TYPE_ALIAS, method((String i) -> job.add(i, tp.typeAlias))),
-            tuple(Id.OBJECT    , method((String i) -> job.add(i, SerdesDefaults.bytesToString.apply(tp.payload))))
+            tuple(Id.OBJECT    , method((String i) -> job.add(i, tp.payload)))
         )) {
             t.a2.accept(t.a1.value);
         }
@@ -32,7 +32,7 @@ public class TypedPayloadJsonSerdes {
         var typedObject = new TypedPayload();
         for (var t: I(
             tuple(Id.TYPE_ALIAS, method((String i) -> { typedObject.typeAlias = jo.getString(i); })),
-            tuple(Id.OBJECT    , method((String i) -> { typedObject.payload   = SerdesDefaults.bytesFromString.apply(jo.getString(i)); }))
+            tuple(Id.OBJECT    , method((String i) -> { typedObject.payload   = jo.get(i); }))
         )) {
             t.a2.accept(t.a1.value);
         }

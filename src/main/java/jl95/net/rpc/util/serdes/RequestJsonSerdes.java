@@ -27,8 +27,8 @@ public class RequestJsonSerdes {
         var job = Json.createObjectBuilder();
         for (var t: I(
 
-            tuple(Id.ID,      SerdesDefaults.stringToJson.call                                  (req.id.toString())),
-            tuple(Id.PAYLOAD, SerdesDefaults.stringToJson.call(SerdesDefaults.bytesToString.call(req.payload)))
+            tuple(Id.ID,      SerdesDefaults.stringToJson.call(req.id.toString())),
+            tuple(Id.PAYLOAD, req.payload)
 
         ).map(t -> tuple(t.a1.value, t.a2))) {
             job.add(t.a1, t.a2);
@@ -42,7 +42,7 @@ public class RequestJsonSerdes {
         for (var t: I(
 
             tuple(Id.ID,      method((String i) -> { x.id      = UUID.fromString                    (SerdesDefaults.stringFromJson.call(jo.get(i))); })),
-            tuple(Id.PAYLOAD, method((String i) -> { x.payload = SerdesDefaults.bytesFromString.call(SerdesDefaults.stringFromJson.call(jo.get(i))); }))
+            tuple(Id.PAYLOAD, method((String i) -> { x.payload = jo.get(i); }))
 
         )) {
                 t.a2.call(t.a1.value);

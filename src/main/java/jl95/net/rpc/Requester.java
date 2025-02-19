@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.json.JsonValue;
+
 import jl95.net.io.Ios;
 import jl95.net.io.ReceiverIf;
 import jl95.net.io.SenderIf;
@@ -19,7 +21,7 @@ import jl95.net.rpc.util.Request;
 import jl95.net.rpc.util.Response;
 import jl95.net.rpc.util.SerdesDefaults;
 
-public class Requester implements RequesterIf<byte[], byte[]> {
+public class Requester implements RequesterIf<JsonValue, JsonValue> {
 
     private enum         ResponseExceptionalStatus {
         FAIL_TIMEOUT;
@@ -48,7 +50,7 @@ public class Requester implements RequesterIf<byte[], byte[]> {
                       ReceiverIf<Response> receiver) {this.sender = sender; this.receiver = receiver;}
 
     @Override
-    synchronized public final byte[] apply(byte[] payload, SendOptions options) {
+    synchronized public final JsonValue apply(JsonValue payload, SendOptions options) {
 
         var request     = new Request();
         request.id      = UUID.randomUUID();

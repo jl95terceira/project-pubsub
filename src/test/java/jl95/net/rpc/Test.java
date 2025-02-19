@@ -57,15 +57,18 @@ public class Test {
     }
     @org.junit.Test
     public void testTimeout() {
+        var timeout = 1000;
         responder.respond(self::apply).await();
         org.junit.Assert.assertEquals("first", requester.apply("first"));
         responder.stop().await();
         responder.respond(msg -> {
-            sleep(Defaults.responseTimeoutMs + 1000);
+            sleep(timeout + 500);
             return "";
         }).await();
         try {
-            requester.apply("second (to time out)");
+            var options = new RequesterIf.SendOptions.Editable();
+            options.responseTimeoutMs = constant(timeout);
+            requester.apply("second (to time out)", options);
             org.junit.Assert.fail("response timeout exception must be raised");
         }
         catch (Requester.ResponseTimeoutException ex) {/* as expected */}

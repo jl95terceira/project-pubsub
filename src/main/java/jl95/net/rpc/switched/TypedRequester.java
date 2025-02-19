@@ -1,5 +1,7 @@
 package jl95.net.rpc.switched;
 
+import javax.json.JsonValue;
+
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.RequesterIf;
@@ -8,11 +10,11 @@ import jl95.net.rpc.util.serdes.TypedPayloadJsonSerdes;
 import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
 
-public class TypedRequester implements TypedRequesterIf<byte[], byte[]> {
+public class TypedRequester implements TypedRequesterIf<JsonValue, JsonValue> {
 
-    public static TypedRequester fromSimpleRpc(RequesterIf<byte[], byte[]> requester) {
+    public static TypedRequester fromSimpleRpc(RequesterIf<JsonValue, JsonValue> requester) {
 
-        return new TypedRequester(RequesterAdaptersCollection.asJsonPostGetRequester(requester).adapted(
+        return new TypedRequester(requester.adapted(
             TypedPayloadJsonSerdes::toJson,
             TypedPayloadJsonSerdes::fromJson
         ));
@@ -31,7 +33,7 @@ public class TypedRequester implements TypedRequesterIf<byte[], byte[]> {
     private TypedRequester(RequesterIf<TypedPayload, TypedPayload> requester) {this.requester = requester;}
 
     @Override
-    public final RequesterIf<byte[], byte[]> getFunction(String typeAlias) {
+    public final RequesterIf<JsonValue, JsonValue> getFunction(String typeAlias) {
 
         return requester.adapted(a -> new TypedPayload(typeAlias, a),
                                  r -> r.payload);
