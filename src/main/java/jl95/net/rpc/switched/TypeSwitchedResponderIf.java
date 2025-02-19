@@ -11,13 +11,13 @@ import jl95.net.rpc.util.TypedPayload;
 
 public interface TypeSwitchedResponderIf<ABase, RBase> {
 
-    void            addCaseWhile(String typeAlias,
-                                 Function1<Tuple2<RBase, Boolean>, ABase>
-                                        responseFunction);
-    void            removeCase  (String typeAlias);
-    Awaitable<Void> start       ();
-    Awaitable<Void> stop        ();
-    Boolean         isRunning   ();
+    void            addCaseWhile  (String typeAlias,
+                                   Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    void            removeCase    (String typeAlias);
+    void            setDefaultCase(Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    Awaitable<Void> start         ();
+    Awaitable<Void> stop          ();
+    Boolean         isRunning     ();
     ResponderIf<TypedPayload, TypedPayload> getBaseResponder();
 
     default void
@@ -42,6 +42,12 @@ public interface TypeSwitchedResponderIf<ABase, RBase> {
             public void removeCase(String typeAlias) {
                 TypeSwitchedResponderIf.this.removeCase(typeAlias);
             }
+
+            @Override
+            public void setDefaultCase(Function1<Tuple2<RBase2, Boolean>, ABase2> responseFunction) { TypeSwitchedResponderIf.this.setDefaultCase(a -> {
+                    var r = responseFunction.apply(requestAdapter.apply(a));
+                    return tuple(responseAdapter.apply(r.a1), r.a2);
+                }); }
 
             @Override
             public Awaitable<Void> start() {
