@@ -1,5 +1,7 @@
 package jl95.net.rpc.switched;
 
+import static jl95.lang.SuperPowers.tuple;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,18 +34,21 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], by
 
     private final ResponderIf<TypedPayload, TypedPayload>
         responder;
-    private final Map<String, Function1<TypedPayload, TypedPayload>>
+    private final Map<String, Function1<Tuple2<TypedPayload, Boolean>, TypedPayload>>
         callbacksCases   = new HashMap<>();
-    private final Function1<TypedPayload, TypedPayload>
+    private final Function1<Tuple2<TypedPayload, Boolean>, TypedPayload>
         callbacksDefault = payload -> { throw new DefaultNotSetException(); };
 
     private TypeSwitchedResponder(ResponderIf<TypedPayload, TypedPayload> responder) {this.responder = responder;}
 
     @Override
-    public final void            addCase   (String typeAlias,
-                                            Function1<byte[], byte[]> responseFunction) {
+    public final void            addCaseWhile(String typeAlias,
+                                              Function1<Tuple2<byte[], Boolean>, byte[]> responseFunction) {
 
-        callbacksCases.put(typeAlias, tp -> new TypedPayload(tp.typeAlias, responseFunction.apply(tp.payload)));
+        callbacksCases.put(typeAlias, tp -> {
+            var r = responseFunction.apply(tp.payload);
+            return tuple(new TypedPayload(tp.typeAlias, r.a1), r.a2);
+        });
     }
     @Override
     public final void            removeCase(String typeAlias) {
@@ -53,7 +58,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<byte[], by
     @Override
     public final Awaitable<Void> start     () {
 
-        return responder.respond(tp -> callbacksCases.getOrDefault(tp.typeAlias, callbacksDefault).apply(tp));
+        return responder.respondWhile(tp -> callbacksCases.getOrDefault(tp.typeAlias, callbacksDefault).apply(tp));
     }
     @Override
     public final Awaitable<Void> stop      () {
