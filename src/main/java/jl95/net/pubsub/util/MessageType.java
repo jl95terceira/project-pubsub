@@ -10,6 +10,6 @@ public enum MessageType {
     REQ_SUBSCRIPTION_TO_ALL  ("sub-all"),
     REQ_SUBSCRIPTION_TO_NONE ("sub-none");
 
-    public final String serial;
-    MessageType(String serial) {this.serial = serial;}
+    public final String value;
+    MessageType(String value) {this.value = value;}
 }

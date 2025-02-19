@@ -53,15 +53,15 @@ public class Broker {
         // ...
         var switchingDeser = new MessageSwitchedDeserializer<Boolean>();
         switchingDeser.addCase(
-            MessageType.REQ_CLOSE.serial,
+            MessageType.REQ_CLOSE.value,
             CloseJsonSerdes::fromJson,
             getCloseReqHandler(connection)
         );
         for (var t: I(
-            tuple(MessageType.REQ_SUBSCRIPTION_BY_LIST .serial, function(SubscriptionByListJsonSerdes ::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_BY_REGEX.serial, function(SubscriptionByRegexJsonSerdes::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_TO_ALL  .serial, function(SubscriptionToAllJsonSerdes  ::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_TO_NONE .serial, function(SubscriptionToNoneJsonSerdes ::fromJson))
+            tuple(MessageType.REQ_SUBSCRIPTION_BY_LIST .value, function(SubscriptionByListJsonSerdes ::fromJson)),
+            tuple(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, function(SubscriptionByRegexJsonSerdes::fromJson)),
+            tuple(MessageType.REQ_SUBSCRIPTION_TO_ALL  .value, function(SubscriptionToAllJsonSerdes  ::fromJson)),
+            tuple(MessageType.REQ_SUBSCRIPTION_TO_NONE .value, function(SubscriptionToNoneJsonSerdes ::fromJson))
         )) {
             switchingDeser.addCase(
                 t.a1,
@@ -70,7 +70,7 @@ public class Broker {
             );
         }
         switchingDeser.addCase(
-            MessageType.PUBLISH.serial,
+            MessageType.PUBLISH.value,
             PublicationJsonSerdes::fromJson,
             decorate(getPubReqHandler(connection))
         );

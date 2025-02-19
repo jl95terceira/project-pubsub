@@ -43,19 +43,19 @@ public class SerdesDefaults {
                                     jsonFromBytes           = serial -> jsonFromString .call
                                                                        (stringFromBytes.call(serial));
     public static final Function1<JsonValue, Message<UUID>>
-                                    memberMsgToJson         = MessageSerializer.get(MessageType.MEMBER                  .serial, x -> StringToJson.get().apply(x.toString()));
+                                    memberMsgToJson         = MessageSerializer.get(MessageType.MEMBER                  .value, x -> StringToJson.get().apply(x.toString()));
     public static final Function1<JsonValue, Message<Publication>>
-                                    pubMsgToJson            = MessageSerializer.get(MessageType.PUBLISH                 .serial, PublicationJsonSerdes::toJson);
+                                    pubMsgToJson            = MessageSerializer.get(MessageType.PUBLISH                 .value, PublicationJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<Close>>
-                                    closeReqToJson          = MessageSerializer.get(MessageType.REQ_CLOSE               .serial, CloseJsonSerdes::toJson);
+                                    closeReqToJson          = MessageSerializer.get(MessageType.REQ_CLOSE               .value, CloseJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<SubscriptionByList>>
-                                    subListReqToJson        = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_BY_LIST.serial, SubscriptionByListJsonSerdes::toJson);
+                                    subListReqToJson        = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_BY_LIST.value, SubscriptionByListJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<SubscriptionByRegex>>
-                                    subRegexReqToJson       = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_BY_LIST.serial, SubscriptionByRegexJsonSerdes::toJson);
+                                    subRegexReqToJson       = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_BY_LIST.value, SubscriptionByRegexJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<SubscriptionToAll>>
-                                    subAllReqToJson         = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_TO_ALL .serial, SubscriptionToAllJsonSerdes::toJson);
+                                    subAllReqToJson         = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_TO_ALL .value, SubscriptionToAllJsonSerdes::toJson);
     public static final Function1<JsonValue, Message<SubscriptionToNone>>
-                                    subNoneReqToJson        = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_TO_NONE.serial, SubscriptionToNoneJsonSerdes::toJson);
+                                    subNoneReqToJson        = MessageSerializer.get(MessageType.REQ_SUBSCRIPTION_TO_NONE.value, SubscriptionToNoneJsonSerdes::toJson);
     public static final Function1<String, byte[]>
                                     bytesToString           = Base64.getEncoder()::encodeToString;
     public static final Function1<byte[], String>
