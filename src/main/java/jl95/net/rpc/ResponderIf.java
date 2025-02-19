@@ -25,11 +25,19 @@ public interface ResponderIf<A, R> {
 
         return respondWhile(responseFunction, RespondOptions.defaults());
     }
+    default Awaitable<Void> respond     (Function1<R, A> responseFunction,
+                                         RespondOptions options) {
+        return respondWhile(request -> tuple(responseFunction.apply(request), true), options);
+    }
     default Awaitable<Void> respond     (Function1<R, A> responseFunction) {
-        return respondWhile(request -> tuple(responseFunction.apply(request), true));
+        return respond(responseFunction, RespondOptions.defaults());
+    }
+    default Awaitable<Void> respondOnce (Function1<R, A> responseFunction,
+                                         RespondOptions options) {
+        return respondWhile(request -> tuple(responseFunction.apply(request), false), options);
     }
     default Awaitable<Void> respondOnce (Function1<R, A> responseFunction) {
-        return respondWhile(request -> tuple(responseFunction.apply(request), false));
+        return respondOnce(responseFunction, RespondOptions.defaults());
     }
     default <A2, R2> ResponderIf<A2, R2> adapted        (Function1<A2, A> requestAdapter,
                                                          Function1<R, R2> responseAdapter) {
