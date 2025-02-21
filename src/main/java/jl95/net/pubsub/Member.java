@@ -13,123 +13,129 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
+import jl95.net.io.Ios;
+import jl95.net.io.SenderReceiverIf;
 import jl95.net.pubsub.protocol.Close;
+import jl95.net.pubsub.protocol.MemberHello;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
 import jl95.net.pubsub.protocol.SubscriptionToAll;
 import jl95.net.pubsub.protocol.SubscriptionToNone;
-import jl95.net.io.Receiver;
 import jl95.net.io.ReceiverIf;
 import jl95.net.io.collections.ReceiverAdaptersCollection;
-import jl95.net.io.Sender;
-import jl95.net.io.SenderIf;
-import jl95.net.io.collections.SenderAdaptersCollections;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.util.Message;
-import jl95.net.pubsub.util.serdes.MessageSwitchedDeserializer;
+import jl95.net.pubsub.util.serdes.MessageDeserializer;
+import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.MessageType;
-import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.io.CloseableIos;
+import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.MemberHelloJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
+import jl95.net.rpc.switched.TypedRequester;
 
-public class Member implements MemberIf<byte[], byte[]> {
+public class Member implements MemberIf<JsonValue, JsonValue> {
 
-    private class BrokerIf {
+    private static class Requesting {
 
-        private final Sender                                sender;
-        private final Receiver                              receiver;
-        private final SenderIf<JsonValue>                   jsonSender;
-        private final RequesterIf<String, Void>             memberRequester;
-        private final SenderIf<Message<Publication>>        pubSender;
-        private final SenderIf<Message<Close>>              closeSender;
-        private final SenderIf<Message<SubscriptionByList>> subListSender;
-        private final SenderIf<Message<SubscriptionByRegex>>subReSender;
-        private final SenderIf<Message<SubscriptionToAll>>  subAllSender;
-        private final SenderIf<Message<SubscriptionToNone>> subNoneSender;
-        private final ReceiverIf<JsonValue>                 jsonReceiver;
+        public final jl95.net.rpc.RequesterIf<Message<MemberHello>,         Void> memberHelloRequester;
+        public final jl95.net.rpc.RequesterIf<Message<Publication>,         Void> pubSender;
+        public final jl95.net.rpc.RequesterIf<Message<Close>,               Void> closeSender;
+        public final jl95.net.rpc.RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
+        public final jl95.net.rpc.RequesterIf<Message<SubscriptionByRegex>, Void> subReSender;
+        public final jl95.net.rpc.RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
+        public final jl95.net.rpc.RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
 
-        public BrokerIf() {
+        public Requesting(Ios ios) {
 
-            this.sender         = Sender.of(ios.getOutputStream());
-            this.receiver       = Receiver.of(ios.getInputStream());
-            this.jsonSender     = SenderAdaptersCollections.asJsonSender(sender);
-            this.memberRequester = RequesterAdaptersCollection.asStringPostRequester(Requester.fromIo(ios));
-            this.pubSender      = jsonSender.adaptedSender(SerdesDefaults.pubMsgToJson);
-            this.closeSender    = jsonSender.adaptedSender(SerdesDefaults.closeReqToJson);
-            this.subListSender  = jsonSender.adaptedSender(SerdesDefaults.subListReqToJson);
-            this.subReSender    = jsonSender.adaptedSender(SerdesDefaults.subRegexReqToJson);
-            this.subAllSender   = jsonSender.adaptedSender(SerdesDefaults.subAllReqToJson);
-            this.subNoneSender  = jsonSender.adaptedSender(SerdesDefaults.subNoneReqToJson);
-            this.jsonReceiver  = ReceiverAdaptersCollection.asJsonReceiver(receiver);
+            this.memberHelloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromIo(ios))
+                                                                   .adaptedRequest     (MessageSerializer.get(MemberHelloJsonSerdes::toJson));
+            var jsonTypedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
+            this.pubSender       = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
+                                             .getFunction   (MessageType.PUBLISH                  .value);
+            this.closeSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(CloseJsonSerdes              ::toJson))
+                                             .getFunction   (MessageType.REQ_CLOSE                .value);
+            this.subListSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByListJsonSerdes ::toJson))
+                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_LIST .value);
+            this.subReSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByRegexJsonSerdes::toJson))
+                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_REGEX.value);
+            this.subAllSender    = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToAllJsonSerdes  ::toJson))
+                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_ALL  .value);
+            this.subNoneSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToNoneJsonSerdes ::toJson))
+                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_NONE .value);
+        }
+    }
+    private static class Responding {
+
+        public final jl95.net.rpc.RequesterIf<Message<MemberHello>, Void> memberHelloRequester;
+        public final ReceiverIf<JsonValue> jsonReceiver;
+
+        public Responding(Ios ios) {
+
+            var sr = SenderReceiverIf.fromIo(ios);
+            this.memberHelloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromSr(sr))
+                                                                   .adaptedRequest (MessageSerializer.get(MemberHelloJsonSerdes::toJson));
+            this.jsonReceiver = ReceiverAdaptersCollection.asJsonReceiver(sr.getReceiver());
         }
     }
 
-    private final CloseableIos                          ios;
-    private final UUID                                  memberId = UUID.randomUUID();
-    private final Method0                               closer;
-    private final BrokerIf                              brokerIf;
-    private final MessageSwitchedDeserializer<Boolean>  switchDeser;
-    private       Method1<Publication>                  pubCallback = (pub) -> {/* pass */};
+    private final UUID                  memberId = UUID.randomUUID();
+    private final Method0               closer;
+    private final Requesting            requesterIf;
+    private final Responding            responderIf;
+    private       Method1<Publication>  pubCallback = (pub) -> {/* pass */};
 
-    private Member(CloseableIos      ios) {
-        this.ios    = ios;
-        this.closer = unchecked(ios::close);
-        this.brokerIf = new BrokerIf();
-        this.switchDeser   = new MessageSwitchedDeserializer<>();
-        switchDeser.addCase(
-            MessageType.PUBLISH.serial,
-            PublicationJsonSerdes::fromJson,
-            msg -> {
-                pubCallback.accept(msg.body);
-                return true;
-            }
-        );
-        brokerIf.memberRequester.apply(memberId.toString());
+    private Member(CloseableIos      requesterIos,
+                   CloseableIos      responderIos) {
+        this.closer   = unchecked(() -> {
+            requesterIos.close();
+            responderIos.close();
+        });
+        this.requesterIf = new Requesting(requesterIos);
+        this.responderIf = new Responding(responderIos);
+        postMessage(new MemberHello(MemberHello.Type.REQUEST_FROM_BROKER),  requesterIf.memberHelloRequester);
+        postMessage(new MemberHello(MemberHello.Type.RESPOND_TO_BROKER), responderIf.memberHelloRequester);
     }
-    private Member(Socket            clientSocket) {
-        this(CloseableIos.fromSocketLazy(clientSocket));
+    private Member(Socket            requesterSocket,
+                   Socket            responderSocket) {
+        this(CloseableIos.fromSocketLazy(requesterSocket),
+             CloseableIos.fromSocketLazy(responderSocket));
     }
 
-    synchronized private <T> void sendMessage   (T object, SenderIf   <Message<T>>       sender) {
-        var msg = new Message<T>();
-        msg.id       = UUID.randomUUID();
-        msg.body     = object;
-        msg.memberId = memberId;
-        sender.send(msg);
-    }
     synchronized private <A> void postMessage   (A object, RequesterIf<Message<A>, Void> sender) {
         postgetMessage(object, sender);
     }
-    synchronized private <A, R> R postgetMessage(A object, RequesterIf<Message<A>, R>    sender) {
+    synchronized private <A, R> R postgetMessage(A object, RequesterIf<Message<A>, R> sender) {
         var msg = new Message<A>();
         msg.id       = UUID.randomUUID();
         msg.body     = object;
         msg.memberId = memberId;
         return sender.apply(msg);
     }
-    synchronized private     void produce       (Publication          pub) {
+    synchronized private     void produce       (Publication pub) {
 
-        sendMessage(pub, brokerIf.pubSender);
+        postMessage(pub, requesterIf.pubSender);
     }
     synchronized private     void onConsumed    (Method1<Publication> pubCallback) {
 
-        if (!isConsuming()) {
-            consume();
-        }
         this.pubCallback = pubCallback;
     }
 
-    public Member(InetSocketAddress serverAddr) {
-        this(Util.getConnectedSocket(serverAddr));
+    public Member(InetSocketAddress brokerAddr) {
+        this(Util.getConnectedSocket(brokerAddr), Util.getConnectedSocket(brokerAddr));
     }
 
     @Override
     synchronized public final void            produce         (String topicName,
-                                                               byte[] data) {
+                                                               JsonValue data) {
 
         var pub = new Publication();
         pub.topicName = topicName;
@@ -138,31 +144,32 @@ public class Member implements MemberIf<byte[], byte[]> {
     }
     @Override
     synchronized public final void            consume         () {
-
-        brokerIf.jsonReceiver.recvWhile(switchDeser);
+        responderIf.jsonReceiver.recv(json -> {
+            pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
+        });
     }
     @Override
     synchronized public final Awaitable<Void> consumeStop     () {
 
-        return brokerIf.jsonReceiver.recvStop();
+        return responderIf.jsonReceiver.recvStop();
     }
     @Override
     synchronized public final Boolean         isConsuming     () {
 
-        return brokerIf.jsonReceiver.isReceiving();
+        return responderIf.jsonReceiver.isReceiving();
     }
     @Override
-    synchronized public final void            onConsumed      (Method2<String, byte[]> pubCallback) {
+    synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {
 
         onConsumed(pub -> {
             pubCallback.accept(pub.topicName, pub.data);
         });
     }
 
-    public final UUID getMemberId() { return memberId; }
+    public final UUID getMemberId     () { return memberId; }
     public final void close           () {
 
-        sendMessage(new Close(), brokerIf.closeSender);
+        postMessage(new Close(), requesterIf.closeSender);
         closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
@@ -172,7 +179,7 @@ public class Member implements MemberIf<byte[], byte[]> {
 
         var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
-        sendMessage(sub, brokerIf.subListSender);
+        postMessage(sub, requesterIf.subListSender);
     }
     public final void subscribeByList (Iterable<String>    topicNames) {
 
@@ -185,7 +192,7 @@ public class Member implements MemberIf<byte[], byte[]> {
 
         var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
-        sendMessage(sub, brokerIf.subReSender);
+        postMessage(sub, requesterIf.subReSender);
     }
     public final void subscribeByRegex(String              topicPattern) {
 
@@ -196,13 +203,13 @@ public class Member implements MemberIf<byte[], byte[]> {
     }
     public final void subscribeToAll  () {
 
-        sendMessage(new SubscriptionToAll(), brokerIf.subAllSender);
+        postMessage(new SubscriptionToAll(), requesterIf.subAllSender);
     }
     public final void subscribe       (SubscriptionToNone  sub) {
         subscribeToNone();
     }
     public final void subscribeToNone () {
 
-        sendMessage(new SubscriptionToNone(), brokerIf.subNoneSender);
+        postMessage(new SubscriptionToNone(), requesterIf.subNoneSender);
     }
 }

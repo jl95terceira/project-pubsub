@@ -11,8 +11,10 @@ public class Message<B> extends NamedDataClass {
 
     public UUID id          = UUID.randomUUID();
     public B    body        = null;
-    public UUID memberId = null;
+    public UUID memberId    = null;
     public Set<InetSocketAddress> stamps = Set();
+
+
 
     @Override protected Iterable<Tuple2<String, ?>> namedData() {
         return I(

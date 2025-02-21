@@ -8,14 +8,14 @@ import java.net.Socket;
 import jl95.lang.NamedDataClass;
 import jl95.lang.variadic.*;
 
-public class BrokerConnectionKey extends NamedDataClass {
+public class ConnectionKey extends NamedDataClass {
 
     public final InetSocketAddress inetSocketAddr;
 
-    public BrokerConnectionKey(InetSocketAddress addr) {
+    public ConnectionKey(InetSocketAddress addr) {
         inetSocketAddr = addr;
     }
-    public BrokerConnectionKey(Socket            socket) {
+    public ConnectionKey(Socket            socket) {
         this(new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
     }
 

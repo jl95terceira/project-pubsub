@@ -23,8 +23,8 @@ public class PublicationJsonSerdes {
         var job = Json.createObjectBuilder();
         for (var t: I(
 
-            tuple(Id.TOPIC, SerdesDefaults.stringToJson.call                                  (req.topicName)),
-            tuple(Id.DATA , SerdesDefaults.stringToJson.call(SerdesDefaults.bytesToString.call(req.data)))
+            tuple(Id.TOPIC, SerdesDefaults.stringToJson.call(req.topicName)),
+            tuple(Id.DATA , req.data)
 
         ).map(t -> tuple(t.a1.value, t.a2))) {
             job.add(t.a1, t.a2);
@@ -37,8 +37,8 @@ public class PublicationJsonSerdes {
         var x = new Publication();
         for (var t: I(
 
-            tuple(Id.TOPIC, method((String i) -> { x.topicName =                                      SerdesDefaults.stringFromJson.apply(jo.get(i)); })),
-            tuple(Id.DATA , method((String i) -> { x.data      = SerdesDefaults.bytesFromString.apply(SerdesDefaults.stringFromJson.apply(jo.get(i))); }))
+            tuple(Id.TOPIC, method((String i) -> { x.topicName = SerdesDefaults.stringFromJson.apply(jo.get(i)); })),
+            tuple(Id.DATA , method((String i) -> { x.data      = jo.get(i); }))
 
         )) {
                 t.a2.call(t.a1.value);

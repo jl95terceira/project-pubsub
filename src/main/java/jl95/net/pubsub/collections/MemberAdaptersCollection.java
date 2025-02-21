@@ -8,16 +8,16 @@ import jl95.net.pubsub.util.SerdesDefaults;
 
 public class MemberAdaptersCollection {
 
-    public static ProducerIf<String> getStringProducer(ProducerIf<byte[]> client) {
-        return client.adaptedProducer(SerdesDefaults.stringToBytes);
+    public static ProducerIf<String> getStringProducer(ProducerIf<JsonValue> client) {
+        return client.adaptedProducer(SerdesDefaults.stringToJson);
     }
-    public static ConsumerIf<String> getStringConsumer(ConsumerIf<byte[]> client) {
-        return client.adaptedConsumer(SerdesDefaults.stringFromBytes);
+    public static ConsumerIf<String> getStringConsumer(ConsumerIf<JsonValue> client) {
+        return client.adaptedConsumer(SerdesDefaults.stringFromJson);
     }
-    public static ProducerIf<JsonValue> getJsonProducer  (ProducerIf<byte[]> client) {
-        return getStringProducer(client).adaptedProducer(SerdesDefaults.jsonToString);
+    public static ProducerIf<byte[]> getBytesProducer  (ProducerIf<JsonValue> client) {
+        return getStringProducer(client).adaptedProducer(SerdesDefaults.bytesToString);
     }
-    public static ConsumerIf<JsonValue> getJsonConsumer  (ConsumerIf<byte[]> client) {
-        return getStringConsumer(client).adaptedConsumer(SerdesDefaults.jsonFromString);
+    public static ConsumerIf<byte[]> getBytesConsumer  (ConsumerIf<JsonValue> client) {
+        return getStringConsumer(client).adaptedConsumer(SerdesDefaults.bytesFromString);
     }
 }

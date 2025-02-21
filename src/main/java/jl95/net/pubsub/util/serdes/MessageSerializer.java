@@ -14,7 +14,6 @@ public class MessageSerializer {
     public enum Id {
 
         ID       ("id"),
-        TYPE     ("type"),
         BODY     ("body"),
         CLIENT_ID("clientId"),
         STAMPS   ("stamps");
@@ -25,18 +24,15 @@ public class MessageSerializer {
 
     /**
      * get function to serialize request sub-types
-     * @param typeName name of type (MUST be unique for the given request body type)
      * @param bodySerializer request body serializer
      * @return request serializer function
      * @param <B> request body type
      */
-    public static <B> Function1<JsonValue, Message<B>> get(String                    typeName,
-                                                           Function1<JsonValue, B>   bodySerializer) {
+    public static <B> Function1<JsonValue, Message<B>> get(Function1<JsonValue, B> bodySerializer) {
         return req -> {
             var job = Json.createObjectBuilder();
             for (var t: I(
                 tuple(Id.ID  ,      Json.createValue(req.id.toString())),
-                tuple(Id.TYPE,      Json.createValue(typeName.toString())),
                 tuple(Id.BODY,      bodySerializer.call(req.body)),
                 tuple(Id.CLIENT_ID, Json.createValue(req.memberId.toString())),
                 tuple(Id.STAMPS,    ListToJson.get(InetSocketAddressToJson.get()).apply(req.stamps))

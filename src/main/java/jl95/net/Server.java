@@ -45,7 +45,7 @@ public class Server {
         toStop      = false;
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
-        new Thread(() -> {
+        pool.execute(() -> {
             startFuture.complete(null);
             while (!toStop) {
                 try {
@@ -69,7 +69,7 @@ public class Server {
             }
             stopFuture.complete(null);
             isRunning = false;
-        }).start();
+        });
         isRunning = true;
         return Awaitable.of(startFuture);
     }

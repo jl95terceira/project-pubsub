@@ -2,13 +2,15 @@ package jl95.net.pubsub.protocol;
 
 import static jl95.lang.SuperPowers.*;
 
+import javax.json.JsonValue;
+
 import jl95.lang.*;
 import jl95.lang.variadic.*;
 
 public class Publication extends NamedDataClass {
 
     public String topicName;
-    public byte[] data;
+    public JsonValue data;
 
     @Override
     protected Iterable<Tuple2<String, ?>> namedData() {

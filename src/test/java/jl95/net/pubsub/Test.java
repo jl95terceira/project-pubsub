@@ -35,7 +35,7 @@ public class Test {
     @org.junit.Test
     public void testPubSub() {
         var msgFuture  = new CompletableFuture<String>();
-        consumer.onConsumed((topic, payload) -> {
+        consumer.consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
         client.subscribeByList(I("foo"));
@@ -46,7 +46,7 @@ public class Test {
     @org.junit.Test
     public void testPubNoSub() {
         var msgFuture  = new CompletableFuture<String>();
-        consumer.onConsumed((topic, payload) -> {
+        consumer.consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
         producer.produce("foo", "BAR");
@@ -56,7 +56,7 @@ public class Test {
     @org.junit.Test
     public void testPubNoSubThenSub() {
         var msgFuture  = new CompletableFuture<String>();
-        consumer.onConsumed((topic, payload) -> {
+        consumer.consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
         producer.produce("foo", "BAR");

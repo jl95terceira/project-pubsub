@@ -1,8 +1,6 @@
 package jl95.net.io;
 
-import static java.lang.String.format;
 import static jl95.lang.SuperPowers.constant;
-import static jl95.lang.SuperPowers.sleep;
 
 import java.io.IOException;
 import java.io.InputStream;

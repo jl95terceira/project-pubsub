@@ -1,13 +1,12 @@
 package jl95.net.io;
 
-import static jl95.lang.SuperPowers.constant;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import static jl95.lang.SuperPowers.sleep;
-import static jl95.lang.SuperPowers.uncheck;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
@@ -22,6 +21,7 @@ public class Receiver implements ReceiverIf<byte[]> {
     }
 
     private final    InputStream             in;
+    private final    ThreadPoolExecutor      pool = new ScheduledThreadPoolExecutor(1);
     private volatile Boolean                 isReceiving = false;
     private volatile Boolean                 toStop      = false;
     private          CompletableFuture<Void> startFuture;
@@ -41,7 +41,7 @@ public class Receiver implements ReceiverIf<byte[]> {
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
         isReceiving = true;
-        new Thread(() -> {
+        pool.execute(() -> {
             startFuture.complete(null);
             while (!toStop) {
                 byte[] incoming;
@@ -92,7 +92,7 @@ public class Receiver implements ReceiverIf<byte[]> {
             isReceiving = false;
             stopFuture.complete(null);
             options.afterStop();
-        }).start();
+        });
         return Awaitable.of(startFuture);
     }
     @Override

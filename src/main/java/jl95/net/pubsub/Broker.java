@@ -11,27 +11,26 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import jl95.lang.Awaitable;
 import jl95.lang.StrictMap;
+import jl95.net.io.Ios;
 import jl95.net.pubsub.protocol.Close;
+import jl95.net.pubsub.protocol.MemberHello;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.util.Message;
-import jl95.net.pubsub.util.BrokerConnection;
-import jl95.net.io.Receiver;
+import jl95.net.pubsub.util.RequestingConnection;
+import jl95.net.pubsub.util.RespondingConnection;
 import jl95.net.io.util.Util;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
-import jl95.net.pubsub.util.MessageType;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
-import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
-import jl95.net.pubsub.util.serdes.MessageSwitchedDeserializer;
-import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
+import jl95.net.pubsub.util.serdes.MessageDeserializer;
+import jl95.net.pubsub.util.serdes.protocol.MemberHelloJsonSerdes;
+import jl95.net.rpc.Responder;
+import jl95.net.rpc.collections.ResponderAdaptersCollection;
 
 public class Broker {
 
-    private final StrictMap<UUID, BrokerConnection> connectionsMap = StrictMap.of(new ConcurrentHashMap<>());
-    private final jl95.net.Server                   netServer;
+    private final StrictMap<UUID, RespondingConnection> respondingMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, RequestingConnection> requestingMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final jl95.net.Server netServer;
 
     public Broker(ServerSocket      socket) {
         this.netServer = new jl95.net.Server(socket);
@@ -41,71 +40,75 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private InetSocketAddress                        getMyAddress       () {
+    private InetSocketAddress                                   getMyAddress        () {
         var socket = getNetServer().getSocket();
         return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
     }
-    private void                                     onAccept           (Socket socket) {
-        var clientIdFuture = new CompletableFuture<String>();
-        var connection     = new BrokerConnection(socket, clientIdFuture::complete);
-        var clientId = UUID.fromString(uncheck(() -> clientIdFuture.get()));
-        connectionsMap.put(clientId, connection);
-        // ...
-        var switchingDeser = new MessageSwitchedDeserializer<Boolean>();
-        switchingDeser.addCase(
-            MessageType.REQ_CLOSE.value,
-            CloseJsonSerdes::fromJson,
-            getCloseReqHandler(connection)
-        );
-        for (var t: I(
-            tuple(MessageType.REQ_SUBSCRIPTION_BY_LIST .value, function(SubscriptionByListJsonSerdes ::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, function(SubscriptionByRegexJsonSerdes::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_TO_ALL  .value, function(SubscriptionToAllJsonSerdes  ::fromJson)),
-            tuple(MessageType.REQ_SUBSCRIPTION_TO_NONE .value, function(SubscriptionToNoneJsonSerdes ::fromJson))
-        )) {
-            switchingDeser.addCase(
-                t.a1,
-                t.a2,
-                decorate(getSubReqHandler(connection))
-            );
+    private void                                                onAccept            (Socket socket) {
+        var memberIdFuture  = new CompletableFuture<UUID>();
+        var helloTypeFuture = new CompletableFuture<MemberHello.Type>();
+        var memberHelloResponder = ResponderAdaptersCollection.asPostResponder(Responder.fromIo(Ios.fromSocket(socket))).adaptedRequest(
+                MessageDeserializer.get(MemberHelloJsonSerdes::fromJson));
+        var memberAcceptedFuture = new CompletableFuture<Void>();
+        memberHelloResponder.respondOnce(hello -> {
+            memberIdFuture .complete(hello.memberId);
+            helloTypeFuture.complete(hello.body.type);
+            uncheck(() -> memberAcceptedFuture.get());
+            return null;
+        }).await();
+        var memberId   = uncheck(() -> memberIdFuture .get());
+        var helloType  = uncheck(() -> helloTypeFuture.get());
+        switch (helloType) {
+            case REQUEST_FROM_BROKER -> {
+                var connection = new RespondingConnection(socket);
+                respondingMap.put(memberId, connection);
+                connection.setCloseReqHandler          (getCloseReqHandler(connection, memberId));
+                connection.setSubReqHandler  (decorate2(getSubReqHandler  (connection, memberId)));
+                connection.setPubReqHandler  (decorate (getPubReqHandler  (connection, memberId)));
+                connection.startRespond().await();
+            }
+            case RESPOND_TO_BROKER -> {
+                var connection = new RequestingConnection(socket);
+                requestingMap.put(memberId, connection);
+                connection.startPubQueue();
+            }
+            default -> throw new AssertionError();
         }
-        switchingDeser.addCase(
-            MessageType.PUBLISH.value,
-            PublicationJsonSerdes::fromJson,
-            decorate(getPubReqHandler(connection))
-        );
-        var recvOptions = new Receiver.RecvOptions.Editable();
-        recvOptions.afterStop = () -> {
-            closeConnection(clientId);
-        };
-        connection.startRespond(switchingDeser, recvOptions);
-        connection.startPubQueue();
+        memberAcceptedFuture.complete(null);
+        memberHelloResponder.stop().await();
+        assert !memberHelloResponder.isRunning();
     }
-    private BrokerConnection                         getConnection      (UUID memberId) {
-        return connectionsMap.get(memberId);
+    private void                                                closeConnection     (UUID memberId) {
+        respondingMap.get   (memberId).close();
+        respondingMap.remove(memberId);
+        requestingMap.get   (memberId).close();
+        requestingMap.remove(memberId);
     }
-    private void                                     closeConnection    (UUID memberId) {
-        connectionsMap.get   (memberId).close();
-        connectionsMap.remove(memberId);
-    }
-    private <T> Function1<Boolean, Message<T>>       decorate           (Function1<Boolean, Message<T>> handler) {
+    private <T> Function1<Boolean, Message<T>>                  decorate            (Function1<Boolean, Message<T>> handler) {
         return req -> {
             req.stamps.add(getMyAddress());
             return handler.apply(req);
         };
     }
-    private Function1<Boolean, Message<Close>>       getCloseReqHandler (BrokerConnection connection) { return req -> false; }
-    private <S extends Subscription>
-            Function1<Boolean, Message<S>>           getSubReqHandler   (BrokerConnection connection) {
+    private <T> Function1<Boolean, Message<? extends T>>        decorate2           (Function1<Boolean, Message<? extends T>> handler) {
         return req -> {
-            connection.setSubscription(req.body);
+            req.stamps.add(getMyAddress());
+            return handler.apply(req);
+        };
+    }
+    private Function1<Boolean, Message<Close>>                  getCloseReqHandler  (RespondingConnection connection, UUID memberId) { return req -> {
+        return false;
+    }; }
+    private Function1<Boolean, Message<? extends Subscription>> getSubReqHandler    (RespondingConnection connection, UUID memberId) {
+        return req -> {
+            requestingMap.get(memberId).setSubscription(req.body);
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>> getPubReqHandler   (BrokerConnection connection) {
+    private Function1<Boolean, Message<Publication>>            getPubReqHandler    (RespondingConnection connection, UUID memberId) {
         return req -> {
             var pub = req.body;
-            for (var other: connectionsMap.values()) {
+            for (var other: requestingMap.values()) {
                 if (other.getSubscription().accepts(pub.topicName)) {
                     other.pub(req);
                 }
@@ -124,12 +127,12 @@ public class Broker {
     }
     public final Iterable<UUID>         getMemberIds    () {
 
-        return I.of(connectionsMap.keySet());
+        return I.of(respondingMap.keySet());
     }
     public final Iterable<InetSocketAddress> getAddressesLazy() {
 
-        return I.of(connectionsMap.values())
-                 .map(BrokerConnection::getSocket)
+        return I.of(respondingMap.values())
+                 .map(RespondingConnection::getSocket)
                  .map(socket -> new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
     }
     public final Set<InetSocketAddress> getAddresses    () {
@@ -138,16 +141,16 @@ public class Broker {
     }
     public final Subscription           getSubscription (UUID memberId) {
 
-        return getConnection(memberId).getSubscription();
+        return requestingMap.get(memberId).getSubscription();
     }
     public final void                   setSubscription (UUID memberId,
                                                          Subscription subscription) {
 
-        getConnection(memberId).setSubscription(subscription);
+        requestingMap.get(memberId).setSubscription(subscription);
     }
     public final void                   closeConnections() {
 
-        for (var clientId: connectionsMap.keySet()) {
+        for (var clientId: respondingMap.keySet()) {
             closeConnection(clientId);
         }
     }

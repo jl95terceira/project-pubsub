@@ -11,6 +11,10 @@ public interface ConsumerIf<C> {
     Boolean         isConsuming     ();
     void            onConsumed      (Method2<String, C> pubCallback);
 
+    default void consume(Method2<String, C> pubCallback) {
+        onConsumed(pubCallback);
+        consume();
+    }
     default <C2> ConsumerIf<C2> adaptedConsumer(Function1<C2, C> consumptionAdapter) {
         return new ConsumerIf<>() {
             @Override public void consume() {
