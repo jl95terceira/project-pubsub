@@ -39,7 +39,10 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
+import jl95.net.rpc.Responder;
+import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
+import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
 
 public class Member implements MemberIf<JsonValue, JsonValue> {
@@ -76,14 +79,14 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     private static class Responding {
 
         public final jl95.net.rpc.RequesterIf<Message<MemberHello>, Void> memberHelloRequester;
-        public final ReceiverIf<JsonValue> jsonReceiver;
+        public final ResponderIf<JsonValue, Void> jsonReceiver;
 
         public Responding(Ios ios) {
 
             var sr = SenderReceiverIf.fromIo(ios);
             this.memberHelloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromSr(sr))
                                                                    .adaptedRequest (MessageSerializer.get(MemberHelloJsonSerdes::toJson));
-            this.jsonReceiver = ReceiverAdaptersCollection.asJsonReceiver(sr.getReceiver());
+            this.jsonReceiver = ResponderAdaptersCollection.asPostResponder(Responder.fromSr(sr));
         }
     }
 
@@ -144,19 +147,20 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     @Override
     synchronized public final void            consume         () {
-        responderIf.jsonReceiver.recv(json -> {
+        responderIf.jsonReceiver.respond(json -> {
             pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
+            return null;
         });
     }
     @Override
     synchronized public final Awaitable<Void> consumeStop     () {
 
-        return responderIf.jsonReceiver.recvStop();
+        return responderIf.jsonReceiver.stop();
     }
     @Override
     synchronized public final Boolean         isConsuming     () {
 
-        return responderIf.jsonReceiver.isReceiving();
+        return responderIf.jsonReceiver.isRunning();
     }
     @Override
     synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {

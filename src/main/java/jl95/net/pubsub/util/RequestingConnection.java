@@ -27,6 +27,9 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
+import jl95.net.rpc.Requester;
+import jl95.net.rpc.RequesterIf;
+import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
@@ -35,13 +38,13 @@ public class RequestingConnection {
 
     private class MemberIf {
 
-        public final SenderIf<Message<Publication>>           pubSender;
+        public final RequesterIf<Message<Publication>, Void> pubSender;
 
         public MemberIf(Ios ios) {
 
             var sender     = Sender  .of(ios.getOutputStream());
-            this.pubSender = SenderAdaptersCollections.asJsonSender (sender)
-                                                      .adaptedSender(MessageSerializer.get(PublicationJsonSerdes::toJson));
+            this.pubSender = RequesterAdaptersCollection.asPostRequester(Requester.fromIo(ios))
+                                                      .adaptedRequest(MessageSerializer.get(PublicationJsonSerdes::toJson));
         }
     }
 
@@ -72,7 +75,7 @@ public class RequestingConnection {
             while (!queueToStop) {
                 var pub = uncheck(() -> queue.poll(125L, TimeUnit.MILLISECONDS));
                 if (pub == null) continue;
-                memberIf.pubSender.send(pub);
+                memberIf.pubSender.apply(pub);
             }
             queueIsOn = false;
             queueStopFuture.complete(null);
