@@ -11,7 +11,6 @@ import jl95.lang.variadic.Function1;
 import jl95.net.io.Ios;
 import jl95.net.pubsub.Subscription;
 import jl95.net.pubsub.protocol.Close;
-import jl95.net.pubsub.protocol.MemberHello;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
@@ -68,6 +67,7 @@ public class RespondingConnection {
     }
 
     public final Awaitable<Void> startRespond      () {
+
 
         return memberIf.switchedResponder.start();
     }

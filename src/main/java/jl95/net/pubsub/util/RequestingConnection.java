@@ -59,7 +59,6 @@ public class RequestingConnection {
 
     private final Socket                         socket;
     private final MemberIf                       memberIf;
-    private       Subscription                   subscription = (topic) -> false;
 
     public RequestingConnection(Socket socket) {
         this.socket         = socket;
@@ -89,7 +88,7 @@ public class RequestingConnection {
     }
     synchronized public final Boolean         isPubQueueRunning() { return queueIsOn; }
 
-    public final void           pub             (Message<Publication> pubMsg) {
+    public final void           pub      (Message<Publication> pubMsg) {
 
         if (!isPubQueueRunning()) {
             startPubQueue();
@@ -97,10 +96,8 @@ public class RequestingConnection {
         }
         queue.add(pubMsg);
     }
-    public final Socket         getSocket       () { return socket; }
-    public final Subscription   getSubscription () { return subscription; }
-    public final void           setSubscription (Subscription s) { subscription = s; }
-    public final void           close           () {
+    public final Socket         getSocket() { return socket; }
+    public final void           close    () {
         if (isPubQueueRunning()) {
             stopPubQueue().await();
         }

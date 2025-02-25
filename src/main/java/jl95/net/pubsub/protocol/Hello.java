@@ -6,17 +6,19 @@ import static jl95.lang.SuperPowers.tuple;
 import jl95.lang.NamedDataClass;
 import jl95.lang.variadic.Tuple2;
 
-public class MemberHello extends NamedDataClass {
+public class Hello extends NamedDataClass {
 
     public enum Type {
-        REQUEST_FROM_BROKER,
-        RESPOND_TO_BROKER;
+        MEMBER_REQUESTING_FROM_BROKER,
+        MEMBER_RESPONDING_TO_BROKER,
+//        BROKER_REQUESTING_FROM_BROKER,
+//        BROKER_RESPONDING_TO_BROKER;
     }
 
     public Type type;
 
-    public MemberHello() {this(Type.REQUEST_FROM_BROKER);}
-    public MemberHello(Type type) {this.type = type;}
+    public Hello() {this(Type.MEMBER_REQUESTING_FROM_BROKER);}
+    public Hello(Type type) {this.type = type;}
 
     @Override
     protected Iterable<Tuple2<String, ?>> namedData() {

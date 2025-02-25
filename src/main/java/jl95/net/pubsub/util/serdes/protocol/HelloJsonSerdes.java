@@ -7,10 +7,9 @@ import static jl95.lang.SuperPowers.tuple;
 import javax.json.Json;
 import javax.json.JsonValue;
 
-import jl95.net.pubsub.Member;
-import jl95.net.pubsub.protocol.MemberHello;
+import jl95.net.pubsub.protocol.Hello;
 
-public class MemberHelloJsonSerdes {
+public class HelloJsonSerdes {
 
     public enum Id {
         TYPE("type");
@@ -18,7 +17,7 @@ public class MemberHelloJsonSerdes {
         Id(String value) {this.value = value;}
     }
 
-    public static JsonValue   toJson  (MemberHello x) {
+    public static JsonValue   toJson  (Hello x) {
 
         var jsono = Json.createObjectBuilder();
         for (var t: I(
@@ -28,12 +27,12 @@ public class MemberHelloJsonSerdes {
         }
         return jsono.build();
     }
-    public static MemberHello fromJson(JsonValue   json) {
+    public static Hello fromJson(JsonValue   json) {
 
         var jsono = json.asJsonObject();
-        var x = new MemberHello();
+        var x = new Hello();
         for (var t: I(
-            tuple(Id.TYPE, method((String i) -> { x.type = MemberHello.Type.valueOf(jsono.getString(i)); }))
+            tuple(Id.TYPE, method((String i) -> { x.type = Hello.Type.valueOf(jsono.getString(i)); }))
         )) {
             t.a2.accept(t.a1.value);
         }

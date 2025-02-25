@@ -16,14 +16,12 @@ import jl95.lang.variadic.*;
 import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
 import jl95.net.pubsub.protocol.Close;
-import jl95.net.pubsub.protocol.MemberHello;
+import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
 import jl95.net.pubsub.protocol.SubscriptionToAll;
 import jl95.net.pubsub.protocol.SubscriptionToNone;
-import jl95.net.io.ReceiverIf;
-import jl95.net.io.collections.ReceiverAdaptersCollection;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.util.Message;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
@@ -32,7 +30,7 @@ import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.MessageType;
 import jl95.net.io.CloseableIos;
 import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.MemberHelloJsonSerdes;
+import jl95.net.pubsub.util.serdes.protocol.HelloJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
@@ -49,7 +47,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private static class Requesting {
 
-        public final jl95.net.rpc.RequesterIf<Message<MemberHello>,         Void> memberHelloRequester;
+        public final jl95.net.rpc.RequesterIf<Message<Hello>,               Void> helloRequester;
         public final jl95.net.rpc.RequesterIf<Message<Publication>,         Void> pubSender;
         public final jl95.net.rpc.RequesterIf<Message<Close>,               Void> closeSender;
         public final jl95.net.rpc.RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
@@ -59,8 +57,8 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
         public Requesting(Ios ios) {
 
-            this.memberHelloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromIo(ios))
-                                                                   .adaptedRequest     (MessageSerializer.get(MemberHelloJsonSerdes::toJson));
+            this.helloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromIo(ios))
+                                                                   .adaptedRequest     (MessageSerializer.get(HelloJsonSerdes::toJson));
             var jsonTypedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
             this.pubSender       = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
                                              .getFunction   (MessageType.PUBLISH                  .value);
@@ -78,14 +76,14 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     private static class Responding {
 
-        public final jl95.net.rpc.RequesterIf<Message<MemberHello>, Void> memberHelloRequester;
-        public final ResponderIf<JsonValue, Void> jsonReceiver;
+        public final RequesterIf<Message<Hello>, Void> helloRequester;
+        public final ResponderIf<JsonValue,      Void> jsonReceiver;
 
         public Responding(Ios ios) {
 
             var sr = SenderReceiverIf.fromIo(ios);
-            this.memberHelloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromSr(sr))
-                                                                   .adaptedRequest (MessageSerializer.get(MemberHelloJsonSerdes::toJson));
+            this.helloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromSr(sr))
+                                                                   .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
             this.jsonReceiver = ResponderAdaptersCollection.asPostResponder(Responder.fromSr(sr));
         }
     }
@@ -104,8 +102,8 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         });
         this.requesterIf = new Requesting(requesterIos);
         this.responderIf = new Responding(responderIos);
-        postMessage(new MemberHello(MemberHello.Type.REQUEST_FROM_BROKER),  requesterIf.memberHelloRequester);
-        postMessage(new MemberHello(MemberHello.Type.RESPOND_TO_BROKER), responderIf.memberHelloRequester);
+        postMessage(new Hello(Hello.Type.MEMBER_REQUESTING_FROM_BROKER),  requesterIf.helloRequester);
+        postMessage(new Hello(Hello.Type.MEMBER_RESPONDING_TO_BROKER), responderIf.helloRequester);
     }
     private Member(Socket            requesterSocket,
                    Socket            responderSocket) {
