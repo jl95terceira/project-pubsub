@@ -2,12 +2,15 @@ package jl95.net.pubsub.util.serdes;
 
 import static jl95.lang.SuperPowers.*;
 
+import java.util.UUID;
+
 import javax.json.*;
 
 import jl95.net.pubsub.util.Message;
 import jl95.lang.variadic.*;
 import jl95.serdes.InetSocketAddressToJson;
 import jl95.serdes.ListToJson;
+import jl95.serdes.StringToJson;
 
 public class MessageSerializer {
 
@@ -15,7 +18,7 @@ public class MessageSerializer {
 
         ID       ("id"),
         BODY     ("body"),
-        CLIENT_ID("clientId"),
+        MEMBER_ID("memberId"),
         STAMPS   ("stamps");
 
         public final String value;
@@ -34,8 +37,8 @@ public class MessageSerializer {
             for (var t: I(
                 tuple(Id.ID  ,      Json.createValue(req.id.toString())),
                 tuple(Id.BODY,      bodySerializer.call(req.body)),
-                tuple(Id.CLIENT_ID, Json.createValue(req.memberId.toString())),
-                tuple(Id.STAMPS,    ListToJson.get(InetSocketAddressToJson.get()).apply(req.stamps))
+                tuple(Id.MEMBER_ID, Json.createValue(req.memberId.toString())),
+                tuple(Id.STAMPS,    ListToJson.get((UUID u) -> StringToJson.get().apply(u.toString())).apply(req.stamps))
             )) {
                 job.add(t.a1.value, t.a2);
             }

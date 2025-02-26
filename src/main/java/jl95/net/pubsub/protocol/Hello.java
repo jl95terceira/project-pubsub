@@ -9,15 +9,15 @@ import jl95.lang.variadic.Tuple2;
 public class Hello extends NamedDataClass {
 
     public enum Type {
-        MEMBER_REQUESTING_FROM_BROKER,
-        MEMBER_RESPONDING_TO_BROKER,
-//        BROKER_REQUESTING_FROM_BROKER,
-//        BROKER_RESPONDING_TO_BROKER;
+        MEMBER_REQUESTS,
+        MEMBER_RESPONSES,
+        BROKER_REQUESTS,
+        BROKER_RESPONSES;
     }
 
     public Type type;
 
-    public Hello() {this(Type.MEMBER_REQUESTING_FROM_BROKER);}
+    public Hello() {this(Type.MEMBER_REQUESTS);}
     public Hello(Type type) {this.type = type;}
 
     @Override

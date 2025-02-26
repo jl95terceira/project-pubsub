@@ -12,6 +12,7 @@ import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.lang.variadic.Function1;
 import jl95.serdes.InetSocketAddressFromJson;
 import jl95.serdes.ListFromJson;
+import jl95.serdes.StringFromJson;
 
 public class MessageDeserializer {
 
@@ -28,11 +29,11 @@ public class MessageDeserializer {
                 tuple(MessageSerializer.Id.BODY,      method((String i) -> {
                     req.body     = bodyDeserializer.apply(jsono.get(i));
                 })),
-                tuple(MessageSerializer.Id.CLIENT_ID, method((String i) -> {
+                tuple(MessageSerializer.Id.MEMBER_ID, method((String i) -> {
                     req.memberId = UUID.fromString(SerdesDefaults.stringFromJson.apply(jsono.get(i)));
                 })),
                 tuple(MessageSerializer.Id.STAMPS,    method((String i) -> {
-                    req.stamps   = I.of(ListFromJson.get(InetSocketAddressFromJson.get()).apply(jsono.get(i))).toSet();
+                    req.stamps   = I.of(ListFromJson.get(j -> UUID.fromString(StringFromJson.get().apply(j))).apply(jsono.get(i))).toSet();
                 }))
 
             )) {

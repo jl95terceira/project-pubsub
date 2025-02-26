@@ -43,10 +43,6 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private InetSocketAddress                                   getMyAddress        () {
-        var socket = getNetServer().getSocket();
-        return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
-    }
     private void                                                onAccept            (Socket socket) {
         var memberIdFuture = new CompletableFuture<UUID>();
         var helloTypeFuture  = new CompletableFuture<Hello.Type>();
@@ -62,7 +58,7 @@ public class Broker {
         var helloType = uncheck(() -> helloTypeFuture .get());
         var memberId  = uncheck(() -> memberIdFuture.get());
         switch (helloType) {
-            case MEMBER_REQUESTING_FROM_BROKER -> {
+            case MEMBER_REQUESTS -> {
                 var connection = new RespondingConnection(socket);
                 respondingMap.put(memberId, connection);
                 connection.setCloseReqHandler          (getCloseReqHandler(connection, memberId));
@@ -70,7 +66,7 @@ public class Broker {
                 connection.setPubReqHandler  (decorate (getPubReqHandler  (connection, memberId)));
                 connection.startRespond().await();
             }
-            case MEMBER_RESPONDING_TO_BROKER   -> {
+            case MEMBER_RESPONSES   -> {
                 var connection = new RequestingConnection(socket);
                 requestingMap.put(memberId, connection);
                 connection.startPubQueue();
@@ -89,13 +85,13 @@ public class Broker {
     }
     private <T> Function1<Boolean, Message<T>>                  decorate            (Function1<Boolean, Message<T>> handler) {
         return req -> {
-            req.stamps.add(getMyAddress());
+            req.stamps.add(getBrokerId());
             return handler.apply(req);
         };
     }
     private <T> Function1<Boolean, Message<? extends T>>        decorate2           (Function1<Boolean, Message<? extends T>> handler) {
         return req -> {
-            req.stamps.add(getMyAddress());
+            req.stamps.add(getBrokerId());
             return handler.apply(req);
         };
     }
@@ -129,6 +125,13 @@ public class Broker {
     public final Awaitable<Void>            stopAccept      () {
 
         return netServer.stop();
+    }
+    public final UUID                       getBrokerId     () {
+        return brokerId;
+    }
+    public final InetSocketAddress          getBrokerAddress() {
+        var socket = getNetServer().getSocket();
+        return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
     }
     public final Iterable<UUID>             getMemberIds    () {
 

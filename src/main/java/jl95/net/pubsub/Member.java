@@ -102,8 +102,8 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         });
         this.requesterIf = new Requesting(requesterIos);
         this.responderIf = new Responding(responderIos);
-        postMessage(new Hello(Hello.Type.MEMBER_REQUESTING_FROM_BROKER),  requesterIf.helloRequester);
-        postMessage(new Hello(Hello.Type.MEMBER_RESPONDING_TO_BROKER), responderIf.helloRequester);
+        postMessage(new Hello(Hello.Type.MEMBER_REQUESTS),  requesterIf.helloRequester);
+        postMessage(new Hello(Hello.Type.MEMBER_RESPONSES), responderIf.helloRequester);
     }
     private Member(Socket            requesterSocket,
                    Socket            responderSocket) {

@@ -9,10 +9,10 @@ import jl95.lang.variadic.Tuple2;
 
 public class Message<B> extends NamedDataClass {
 
-    public UUID id          = UUID.randomUUID();
-    public B    body        = null;
-    public UUID memberId    = null;
-    public Set<InetSocketAddress> stamps = Set();
+    public UUID      id       = UUID.randomUUID();
+    public B         body     = null;
+    public UUID      memberId = null;
+    public Set<UUID> stamps   = Set();
 
 
 
@@ -20,7 +20,7 @@ public class Message<B> extends NamedDataClass {
         return I(
             tuple("id"      , id),
             tuple("body"    , body),
-            tuple("clientId", memberId),
+            tuple("memberId", memberId),
             tuple("stamps"  , stamps)
         );
     }

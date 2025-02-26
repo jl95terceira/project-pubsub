@@ -25,6 +25,11 @@ public interface TypeSwitchedResponderIf<ABase, RBase> {
                     Function1<RBase, ABase>  responseFunction) {
         addCaseWhile(typeAlias, (ABase a) -> tuple(responseFunction.apply(a), true));
     }
+    default void
+    addCaseBreak   (String                   typeAlias,
+                    Function1<RBase, ABase>  responseFunction) {
+        addCaseWhile(typeAlias, (ABase a) -> tuple(responseFunction.apply(a), false));
+    }
     default <ABase2, RBase2> TypeSwitchedResponderIf<ABase2, RBase2>
     adapted        (Function1<ABase2, ABase> requestAdapter,
                     Function1<RBase, RBase2> responseAdapter) {
