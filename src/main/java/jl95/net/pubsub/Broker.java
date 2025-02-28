@@ -98,7 +98,9 @@ public class Broker {
             for (var e: brokerResponsesMap.entrySet()) {
                 var brokerId         = e.getKey  ();
                 var brokerConnection = e.getValue();
-                if (msg.stamps.contains(brokerId)) continue;
+                if (msg.stamps.contains(brokerId)) {
+                    continue;
+                }
                 brokerConnection.addToQueue(brokerCbCallerSupplier.apply(msg));
             }
             return re;
