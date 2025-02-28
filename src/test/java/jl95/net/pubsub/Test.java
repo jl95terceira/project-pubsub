@@ -15,6 +15,8 @@ import jl95.net.pubsub.util.Defaults;
 
 public class Test {
 
+    public static boolean TEST_SAME_MEMBER  = true;
+    public static boolean TEST_SAME_BROKER  = true;
     public static boolean TEST_MULTI_BROKER = true;
 
     public Instant t0;
@@ -88,10 +90,12 @@ public class Test {
     }
     @org.junit.Test
     public void testPubSubSameMember() {
+        org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
         testPubSub(member1, member1);
     }
     @org.junit.Test
     public void testPubSubSameBroker() {
+        org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
         testPubSub(member1, member2);
     }
     @org.junit.Test
@@ -101,10 +105,12 @@ public class Test {
     }
     @org.junit.Test
     public void testPubNoSubSameMember() {
+        org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
         testPubNoSub(member1, member1);
     }
     @org.junit.Test
     public void testPubNoSubSameBroker() {
+        org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
         testPubNoSub(member1, member2);
     }
     @org.junit.Test
@@ -114,10 +120,12 @@ public class Test {
     }
     @org.junit.Test
     public void testPubNoSubThenSubSameMember() {
+        org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
         testPubNoSubThenSub(member1, member1);
     }
     @org.junit.Test
     public void testPubNoSubThenSubSameBroker() {
+        org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
         testPubNoSubThenSub(member1, member2);
     }
     @org.junit.Test
