@@ -70,33 +70,36 @@ public class Broker {
             case MEMBER_REQUESTS -> {
                 var connection = new MemberRequestsConnection(socket);
                 memberRequestsMap.put(memberId, connection);
-                connection.setCloseReqHandler   (decorate(getMemberCloseReqHandler(memberId, connection), msg -> cbs -> {}));
-                connection.setSubListReqHandler (decorate(getMemberSubReqHandler  (memberId, connection), msg -> cbs -> cbs.onSubList (msg)));
-                connection.setSubRegexReqHandler(decorate(getMemberSubReqHandler  (memberId, connection), msg -> cbs -> cbs.onSubRegex(msg)));
-                connection.setSubAllReqHandler  (decorate(getMemberSubReqHandler  (memberId, connection), msg -> cbs -> cbs.onSubAll  (msg)));
-                connection.setSubNoneReqHandler (decorate(getMemberSubReqHandler  (memberId, connection), msg -> cbs -> cbs.onSubNone (msg)));
-                connection.setPubReqHandler     (decorate(getMemberPubReqHandler  (memberId, connection), msg -> cbs -> cbs.onPub     (msg)));
+                connection.setCloseReqHandler   (decorate(getCloseReqHandler(memberId), msg -> cbs -> {}));
+                connection.setSubListReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg)));
+                connection.setSubRegexReqHandler(decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg)));
+                connection.setSubAllReqHandler  (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg)));
+                connection.setSubNoneReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg)));
+                connection.setPubReqHandler     (decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg)));
                 connection.startRespond().await();
-            }
-            case BROKER_REQUESTS -> {
-                synchronized (brokerLinkSync) {
-                    if (brokerRequestsMap .containsKey(memberId) ||
-                        brokerResponsesMap.containsKey(memberId)) break;
-                    var connection = new BrokerRequestsConnection(socket);
-                    brokerRequestsMap.put(memberId, connection);
-                    System.out.printf("Broker requests connection not implemented - got connection: %s\n", socket);
-                    connection.startRespond().await();
-                }
             }
             case MEMBER_RESPONSES -> {
                 var connection = new MemberResponsesConnection(socket);
                 memberResponsesMap.put(memberId, connection);
                 connection.startQueueLoop();
             }
+            case BROKER_REQUESTS -> {
+                synchronized (brokerLinkSync) {
+                    if (brokerRequestsMap .containsKey(memberId)) break;
+                    var connection = new BrokerRequestsConnection(socket);
+                    brokerRequestsMap.put(memberId, connection);
+                    connection.setCloseReqHandler   (decorate(getCloseReqHandler(memberId), msg -> cbs -> {}));
+                    connection.setSubListReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg)));
+                    connection.setSubRegexReqHandler(decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg)));
+                    connection.setSubAllReqHandler  (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg)));
+                    connection.setSubNoneReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg)));
+                    connection.setPubReqHandler     (decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg)));
+                    connection.startRespond().await();
+                }
+            }
             case BROKER_RESPONSES -> {
                 synchronized (brokerLinkSync) {
-                    if (brokerRequestsMap .containsKey(memberId) ||
-                        brokerResponsesMap.containsKey(memberId)) break;
+                    if (brokerResponsesMap.containsKey(memberId)) break;
                     var connection = new BrokerResponsesConnection(socket);
                     brokerResponsesMap.put(memberId, connection);
                     connection.startQueueLoop();
@@ -124,15 +127,15 @@ public class Broker {
             return re;
         };
     }
-    private Function1<Boolean, Message<Close>>      getMemberCloseReqHandler(UUID memberId, MemberRequestsConnection connection) { return msg -> false; }
+    private Function1<Boolean, Message<Close>>      getCloseReqHandler(UUID entityId) { return msg -> !entityId.equals(msg.memberId); }
     private <S extends Subscription>
-            Function1<Boolean, Message<S>>          getMemberSubReqHandler  (UUID memberId, MemberRequestsConnection connection) {
+            Function1<Boolean, Message<S>>          getSubReqHandler  (UUID entityId) {
         return msg -> {
-            setSubscription(memberId, msg.body);
+            setSubscription(msg.memberId, msg.body);
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>>getMemberPubReqHandler  (UUID memberId, MemberRequestsConnection connection) {
+    private Function1<Boolean, Message<Publication>>getPubReqHandler  (UUID entityId) {
         return msg -> {
             var pub = msg.body;
             for (var UUIDOfOther: subscriptionsMap.keySet()) {
@@ -173,6 +176,7 @@ public class Broker {
                 helloMsg.id       = UUID.randomUUID();
                 helloMsg.body     = new Hello(t.a1);
                 helloMsg.memberId = brokerId;
+                t.a2.apply(helloMsg);
             }
         }
     }
