@@ -50,10 +50,7 @@ public class Test {
         uncheck(() -> broker2.getNetServer().getSocket().close());
     }
 
-    @org.junit.Test
-    public void testConnectAndClose() {
-    }
-    public void testPubSub(Member producerMember, Member consumerMember) {
+    public void testPubSub         (Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
         MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
             msgFuture.complete(payload);
@@ -63,19 +60,7 @@ public class Test {
         sleep(125);
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
-    @org.junit.Test
-    public void testPubSubSameMember() {
-        testPubSub(member1, member1);
-    }
-    @org.junit.Test
-    public void testPubSubSameBroker() {
-        testPubSub(member1, member2);
-    }
-//    @org.junit.Test
-    public void testPubSubMultiBroker() {
-        testPubSub(member1, member3);
-    }
-    public void testPubNoSub(Member producerMember, Member consumerMember) {
+    public void testPubNoSub       (Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
         MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
             msgFuture.complete(payload);
@@ -83,18 +68,6 @@ public class Test {
         MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
         sleep(125);
         org.junit.Assert.assertFalse(msgFuture.isDone());
-    }
-    @org.junit.Test
-    public void testPubNoSubSameMember() {
-        testPubNoSub(member1, member1);
-    }
-    @org.junit.Test
-    public void testPubNoSubSameBroker() {
-        testPubNoSub(member1, member2);
-    }
-//    @org.junit.Test
-    public void testPubNoSubMultiBroker() {
-        testPubNoSub(member1, member3);
     }
     public void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
@@ -109,6 +82,36 @@ public class Test {
         sleep(125);
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
+
+    @org.junit.Test
+    public void testConnectAndClose() {
+    }
+    @org.junit.Test
+    public void testPubSubSameMember() {
+        testPubSub(member1, member1);
+    }
+    @org.junit.Test
+    public void testPubSubSameBroker() {
+        testPubSub(member1, member2);
+    }
+    @org.junit.Test
+    public void testPubSubMultiBroker() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
+        testPubSub(member1, member3);
+    }
+    @org.junit.Test
+    public void testPubNoSubSameMember() {
+        testPubNoSub(member1, member1);
+    }
+    @org.junit.Test
+    public void testPubNoSubSameBroker() {
+        testPubNoSub(member1, member2);
+    }
+    @org.junit.Test
+    public void testPubNoSubMultiBroker() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
+        testPubNoSub(member1, member3);
+    }
     @org.junit.Test
     public void testPubNoSubThenSubSameMember() {
         testPubNoSubThenSub(member1, member1);
@@ -117,8 +120,9 @@ public class Test {
     public void testPubNoSubThenSubSameBroker() {
         testPubNoSubThenSub(member1, member2);
     }
-//    @org.junit.Test
+    @org.junit.Test
     public void testPubNoSubThenSubMultiBroker() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
         testPubNoSubThenSub(member1, member3);
     }
 }

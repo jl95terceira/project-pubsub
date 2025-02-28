@@ -52,7 +52,7 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private void                                    onAccept                (Socket socket) {
+    private void                                    onAccept          (Socket socket) {
         var memberIdFuture = new CompletableFuture<UUID>();
         var helloTypeFuture  = new CompletableFuture<Hello.Type>();
         var helloResponder   = ResponderAdaptersCollection.asPostResponder(Responder.fromIo(Ios.fromSocket(socket))).adaptedRequest(
@@ -70,12 +70,12 @@ public class Broker {
             case MEMBER_REQUESTS -> {
                 var connection = new MemberRequestsConnection(socket);
                 memberRequestsMap.put(memberId, connection);
-                connection.setCloseReqHandler   (decorate(getCloseReqHandler(memberId), msg -> cbs -> {}));
-                connection.setSubListReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg)));
-                connection.setSubRegexReqHandler(decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg)));
-                connection.setSubAllReqHandler  (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg)));
-                connection.setSubNoneReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg)));
-                connection.setPubReqHandler     (decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg)));
+                connection.closeReqHandler    = decorate(getCloseReqHandler(memberId), msg -> cbs -> {});
+                connection.subListReqHandler  = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
+                connection.subRegexReqHandler = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
+                connection.subAllReqHandler   = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
+                connection.subNoneReqHandler  = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
+                connection.pubReqHandler      = decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
                 connection.startRespond().await();
             }
             case MEMBER_RESPONSES -> {
@@ -88,12 +88,12 @@ public class Broker {
                     if (brokerRequestsMap .containsKey(memberId)) break;
                     var connection = new BrokerRequestsConnection(socket);
                     brokerRequestsMap.put(memberId, connection);
-                    connection.setCloseReqHandler   (decorate(getCloseReqHandler(memberId), msg -> cbs -> {}));
-                    connection.setSubListReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg)));
-                    connection.setSubRegexReqHandler(decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg)));
-                    connection.setSubAllReqHandler  (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg)));
-                    connection.setSubNoneReqHandler (decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg)));
-                    connection.setPubReqHandler     (decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg)));
+                    connection.closeReqHandler    = decorate(getCloseReqHandler(memberId), msg -> cbs -> {});
+                    connection.subListReqHandler  = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
+                    connection.subRegexReqHandler = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
+                    connection.subAllReqHandler   = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
+                    connection.subNoneReqHandler  = decorate(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
+                    connection.pubReqHandler      = decorate(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
                     connection.startRespond().await();
                 }
             }
@@ -111,7 +111,7 @@ public class Broker {
         helloResponder.stop().await();
         assert !helloResponder.isRunning();
     }
-    private void                                    closeConnection         (UUID UUID) {
+    private void                                    closeConnection   (UUID UUID) {
         memberRequestsMap.get   (UUID).close();
         memberRequestsMap.remove(UUID);
         memberResponsesMap.get   (UUID).close();
@@ -119,7 +119,7 @@ public class Broker {
     }
     private <T>
 
-            Function1<Boolean, Message<T>>          decorate                (Function1<Boolean, Message<T>> handler, Function1<Method1<BrokerResponsesConnection.Callbacks>, Message<T>> brokerCbCallerSupplier) {
+            Function1<Boolean, Message<T>>          decorate          (Function1<Boolean, Message<T>> handler, Function1<Method1<BrokerResponsesConnection.Callbacks>, Message<T>> brokerCbCallerSupplier) {
         return msg -> {
             msg.stamps.add(getBrokerId());
             var re = handler.apply(msg);
@@ -149,7 +149,7 @@ public class Broker {
         };
     }
     private <T>
-            void                                    propagateReq            (Message<T> msg, Method1<BrokerResponsesConnection.Callbacks> brokerCbCaller) {
+            void                                    propagateReq      (Message<T> msg, Method1<BrokerResponsesConnection.Callbacks> brokerCbCaller) {
         for (var e: brokerResponsesMap.entrySet()) {
             var brokerId         = e.getKey  ();
             var brokerConnection = e.getValue();
@@ -157,8 +157,8 @@ public class Broker {
             brokerConnection.addToQueue(brokerCbCaller);
         }
     }
-    private void                                    linkBroker              (Socket requestsSocket,
-                                                                             Socket responsesSocket) {
+    private void                                    linkBroker        (Socket requestsSocket,
+                                                                       Socket responsesSocket) {
         synchronized (brokerLinkSync) {
             var requestsIos  = CloseableIos.fromSocketLazy(requestsSocket);
             var responsesIos = CloseableIos.fromSocketLazy(responsesSocket);
@@ -200,15 +200,11 @@ public class Broker {
 
         return I.of(memberRequestsMap.keySet());
     }
-    public final Iterable<InetSocketAddress>getAddressesLazy() {
+    public final Iterable<InetSocketAddress>getAddresses    () {
 
         return I.of(memberRequestsMap.values())
                  .map(MemberRequestsConnection::getSocket)
                  .map(socket -> new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
-    }
-    public final Set<InetSocketAddress>     getAddresses    () {
-
-            return I.of(getAddressesLazy()).toSet();
     }
     public final Subscription               getSubscription (UUID memberId) {
 

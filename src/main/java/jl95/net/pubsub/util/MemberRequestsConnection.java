@@ -60,12 +60,12 @@ public class MemberRequestsConnection {
 
     private final Socket   socket;
     private final MemberIf memberIf;
-    private       Function1<Boolean, Message<Close>>               closeReqHandler    = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<SubscriptionByList>>  subListReqHandler  = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<SubscriptionByRegex>> subRegexReqHandler = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<SubscriptionToAll>>   subAllReqHandler   = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<Close>>               closeReqHandler    = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<SubscriptionByList>>  subListReqHandler  = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<SubscriptionByRegex>> subRegexReqHandler = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<SubscriptionToAll>>   subAllReqHandler   = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
+    public Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
 
     public MemberRequestsConnection(Socket socket) {
         this.socket         = socket;
@@ -86,22 +86,6 @@ public class MemberRequestsConnection {
 
         return memberIf.switchedResponder.isRunning();
     }
-    public final void            setCloseReqHandler   (Function1<Boolean, Message<Close>>               h) {
-        closeReqHandler = h;}
-    public final void            setSubListReqHandler (Function1<Boolean, Message<SubscriptionByList>>  h) {
-        subListReqHandler = h;
-    }
-    public final void            setSubRegexReqHandler(Function1<Boolean, Message<SubscriptionByRegex>> h) {
-        subRegexReqHandler = h;
-    }
-    public final void            setSubAllReqHandler  (Function1<Boolean, Message<SubscriptionToAll>>   h) {
-        subAllReqHandler = h;
-    }
-    public final void            setSubNoneReqHandler (Function1<Boolean, Message<SubscriptionToNone>>  h) {
-        subNoneReqHandler = h;
-    }
-    public final void            setPubReqHandler     (Function1<Boolean, Message<Publication>>         h) {
-        pubReqHandler = h;}
     public final Socket          getSocket            () { return socket; }
     public final void            close                () {
         if (isResponding()) {
