@@ -54,7 +54,7 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private void                                    onAccept          (Socket socket) {
+    private void                        onAccept             (Socket socket) {
         var memberIdFuture = new CompletableFuture<UUID>();
         var helloTypeFuture  = new CompletableFuture<Hello.Type>();
         var helloResponder   = ResponderAdaptersCollection.asPostResponder(Responder.fromIo(Ios.fromSocket(socket))).adaptedRequest(
@@ -113,7 +113,7 @@ public class Broker {
         helloResponder.stop().await();
         assert !helloResponder.isRunning();
     }
-    private void                                    closeMemberConnection(UUID memberId) {
+    private void                        closeMemberConnection(UUID memberId) {
         memberRequestsMap .get   (memberId).close();
         memberRequestsMap .remove(memberId);
         memberResponsesMap.get   (memberId).close();
