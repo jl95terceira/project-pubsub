@@ -15,6 +15,7 @@ import jl95.net.io.Ios;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
+import jl95.net.pubsub.util.BrokerResponsesConnection;
 import jl95.net.pubsub.util.Message;
 import jl95.net.pubsub.util.RequestingConnection;
 import jl95.net.pubsub.util.RespondingConnection;
@@ -62,10 +63,10 @@ public class Broker {
                 var connection = new RespondingConnection(socket);
                 respondingMap.put(memberId, connection);
                 connection.setCloseReqHandler            (getCloseReqHandler(connection, memberId));
-                connection.setSubListReqHandler (decorate(getSubReqHandler  (connection, memberId)));
-                connection.setSubRegexReqHandler(decorate(getSubReqHandler  (connection, memberId)));
-                connection.setSubAllReqHandler  (decorate(getSubReqHandler  (connection, memberId)));
-                connection.setSubNoneReqHandler (decorate(getSubReqHandler  (connection, memberId)));
+                connection.setSubListReqHandler (decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubList (msg))));
+                connection.setSubRegexReqHandler(decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubRegex(msg))));
+                connection.setSubAllReqHandler  (decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubAll  (msg))));
+                connection.setSubNoneReqHandler (decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubNone (msg))));
                 connection.setPubReqHandler     (decorate(getPubReqHandler  (connection, memberId)));
                 connection.startRespond().await();
             }
@@ -88,28 +89,27 @@ public class Broker {
     }
     private <T>
             Function1<Boolean, Message<T>>           decorate            (Function1<Boolean, Message<T>> handler) {
-        return req -> {
-            req.stamps.add(getBrokerId());
-            return handler.apply(req);
+        return msg -> {
+            msg.stamps.add(getBrokerId());
+            return handler.apply(msg);
         };
     }
-    private Function1<Boolean, Message<Close>>       getCloseReqHandler  (RespondingConnection connection, UUID UUID) { return req -> {
-        return false;
-    }; }
+    private Function1<Boolean, Message<Close>>       getCloseReqHandler  (RespondingConnection connection, UUID UUID) { return msg -> false; }
     private <S extends Subscription>
-            Function1<Boolean, Message<S>>           getSubReqHandler    (RespondingConnection connection, UUID UUID) {
-        return req -> {
-            setSubscription(UUID, req.body);
+            Function1<Boolean, Message<S>>           getSubReqHandler    (RespondingConnection connection, UUID UUID, Function1<Method1<BrokerResponsesConnection.Callbacks>,Message<S>> brokerCbSupplier) {
+        return msg -> {
+            setSubscription(UUID, msg.body);
+
             return true;
         };
     }
     private Function1<Boolean, Message<Publication>> getPubReqHandler    (RespondingConnection connection, UUID UUID) {
-        return req -> {
-            var pub = req.body;
+        return msg -> {
+            var pub = msg.body;
             for (var UUIDOfOther: subscriptionsMap.keySet()) {
                 if (getSubscription(UUIDOfOther).accepts(pub.topicName)) {
                     if (requestingMap.containsKey(UUIDOfOther)) {
-                        requestingMap.get(UUIDOfOther).pub(req);
+                        requestingMap.get(UUIDOfOther).pub(msg);
                     }
                 }
             }
