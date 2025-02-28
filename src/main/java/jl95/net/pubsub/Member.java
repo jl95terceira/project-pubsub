@@ -47,7 +47,6 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private static class Requesting {
 
-        public final jl95.net.rpc.RequesterIf<Message<Hello>,               Void> helloRequester;
         public final jl95.net.rpc.RequesterIf<Message<Publication>,         Void> pubSender;
         public final jl95.net.rpc.RequesterIf<Message<Close>,               Void> closeSender;
         public final jl95.net.rpc.RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
@@ -57,8 +56,6 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
         public Requesting(Ios ios) {
 
-            this.helloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromIo(ios))
-                                                                   .adaptedRequest     (MessageSerializer.get(HelloJsonSerdes::toJson));
             var jsonTypedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
             this.pubSender       = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
                                              .getFunction   (MessageType.PUBLISH                  .value);
@@ -76,14 +73,11 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     private static class Responding {
 
-        public final RequesterIf<Message<Hello>, Void> helloRequester;
-        public final ResponderIf<JsonValue,      Void> jsonReceiver;
+        public final ResponderIf<JsonValue, Void> jsonReceiver;
 
         public Responding(Ios ios) {
 
             var sr = SenderReceiverIf.fromIo(ios);
-            this.helloRequester = RequesterAdaptersCollection.asPostRequester(Requester.fromSr(sr))
-                                                                   .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
             this.jsonReceiver = ResponderAdaptersCollection.asPostResponder(Responder.fromSr(sr));
         }
     }
@@ -96,17 +90,25 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private Member(CloseableIos      requesterIos,
                    CloseableIos      responderIos) {
+
         this.closer   = unchecked(() -> {
             requesterIos.close();
             responderIos.close();
         });
         this.requesterIf = new Requesting(requesterIos);
         this.responderIf = new Responding(responderIos);
-        postMessage(new Hello(Hello.Type.MEMBER_REQUESTS),  requesterIf.helloRequester);
-        postMessage(new Hello(Hello.Type.MEMBER_RESPONSES), responderIf.helloRequester);
+        var requestsHelloRequester = RequesterAdaptersCollection
+            .asPostRequester(Requester.fromIo(requesterIos))
+            .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+        var responsesHelloRequester = RequesterAdaptersCollection
+            .asPostRequester(Requester.fromIo(responderIos))
+            .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
+        postMessage(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
+        postMessage(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
     }
     private Member(Socket            requesterSocket,
                    Socket            responderSocket) {
+
         this(CloseableIos.fromSocketLazy(requesterSocket),
              CloseableIos.fromSocketLazy(responderSocket));
     }

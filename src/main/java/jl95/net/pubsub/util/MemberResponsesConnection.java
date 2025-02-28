@@ -32,16 +32,14 @@ public class MemberResponsesConnection {
     }
 
     private final BlockingQueue<Message<Publication>>
-                            queue          = new ArrayBlockingQueue<>(20);
-    private final ThreadPoolExecutor
-                            pool           = new ScheduledThreadPoolExecutor(1);
-    private      CompletableFuture<Void>
-                            queueStopFuture;
-    private      Boolean    queueIsOn      = false;
-    private      Boolean    queueToStop    = false;
-
-    private final Socket                         socket;
-    private final MemberIf                       memberIf;
+                                     queue          = new ArrayBlockingQueue<>(20);
+    private final ThreadPoolExecutor pool           = new ScheduledThreadPoolExecutor(1);
+    private final Socket             socket;
+    private final MemberIf           memberIf;
+    private       CompletableFuture<Void>
+                                     queueStopFuture;
+    private       Boolean            queueIsOn      = false;
+    private       Boolean            queueToStop    = false;
 
     public MemberResponsesConnection(Socket socket) {
         this.socket         = socket;
@@ -49,7 +47,7 @@ public class MemberResponsesConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    synchronized public final void            startQueueLoop() {
+    synchronized public final void            startQueueLoop   () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -64,14 +62,14 @@ public class MemberResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final Awaitable<Void> stopQueueLoop () {
+    synchronized public final Awaitable<Void> stopQueueLoop    () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
         return Awaitable.of(queueStopFuture);
     }
     synchronized public final Boolean         isPubQueueRunning() { return queueIsOn; }
 
-    public final void           addToQueue(Message<Publication> pubMsg) {
+    public final void   addToQueue(Message<Publication> pubMsg) {
 
         if (!isPubQueueRunning()) {
             startQueueLoop();
@@ -79,8 +77,8 @@ public class MemberResponsesConnection {
         }
         queue.add(pubMsg);
     }
-    public final Socket         getSocket () { return socket; }
-    public final void           close     () {
+    public final Socket getSocket () { return socket; }
+    public final void   close     () {
         if (isPubQueueRunning()) {
             stopQueueLoop().await();
         }

@@ -15,6 +15,7 @@ import jl95.net.io.Ios;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
+import jl95.net.pubsub.util.BrokerRequestsConnection;
 import jl95.net.pubsub.util.BrokerResponsesConnection;
 import jl95.net.pubsub.util.Message;
 import jl95.net.pubsub.util.MemberResponsesConnection;
@@ -30,10 +31,12 @@ import jl95.net.rpc.collections.ResponderAdaptersCollection;
 public class Broker {
 
     private final UUID brokerId = UUID.randomUUID();
-    private final StrictMap<UUID, MemberRequestsConnection> memberRequestsMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberRequestsConnection>  memberRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
     private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, BrokerResponsesConnection> brokerRespondingMap = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, Subscription>              subscriptionsMap    = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerRequestsConnection>  brokerRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerResponsesConnection> brokerResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final Object                                     brokerLinkSync     = new Object();
+    private final StrictMap<UUID, Subscription>              subscriptionsMap   = StrictMap.of(new ConcurrentHashMap<>());
 
     private final jl95.net.Server netServer;
 
@@ -71,15 +74,29 @@ public class Broker {
                 connection.setPubReqHandler     (decorate(getPubReqHandler  (connection, memberId)));
                 connection.startRespond().await();
             }
+            case BROKER_REQUESTS -> {
+                synchronized (brokerLinkSync) {
+                    if (brokerRequestsMap .containsKey(memberId) ||
+                        brokerResponsesMap.containsKey(memberId)) break;
+                    var connection = new BrokerRequestsConnection(socket);
+                    brokerRequestsMap.put(memberId, connection);
+                    System.out.printf("Broker requests connection not implemented - got connection: %s\n", socket);
+                    connection.startRespond().await();
+                }
+            }
             case MEMBER_RESPONSES -> {
                 var connection = new MemberResponsesConnection(socket);
                 memberResponsesMap.put(memberId, connection);
                 connection.startQueueLoop();
             }
             case BROKER_RESPONSES -> {
-                var connection = new BrokerResponsesConnection(socket);
-                brokerRespondingMap.put(memberId, connection);
-                connection.startQueueLoop();
+                synchronized (brokerLinkSync) {
+                    if (brokerRequestsMap .containsKey(memberId) ||
+                        brokerResponsesMap.containsKey(memberId)) break;
+                    var connection = new BrokerResponsesConnection(socket);
+                    brokerResponsesMap.put(memberId, connection);
+                    connection.startQueueLoop();
+                }
             }
             default -> throw new AssertionError();
         }
@@ -105,7 +122,7 @@ public class Broker {
             Function1<Boolean, Message<S>>           getSubReqHandler    (MemberRequestsConnection connection, UUID UUID, Function1<Method1<BrokerResponsesConnection.Callbacks>,Message<S>> brokerCbSupplier) {
         return msg -> {
             setSubscription(UUID, msg.body);
-            for (var brokerConnection: brokerRespondingMap.values()) {
+            for (var brokerConnection: brokerResponsesMap.values()) {
                 var brokerCb = brokerCbSupplier.apply(msg);
                 brokerConnection.addToQueue(brokerCb);
             }
@@ -155,15 +172,23 @@ public class Broker {
 
             return I.of(getAddressesLazy()).toSet();
     }
-    public final Subscription               getSubscription (UUID         UUID) {
+    public final Subscription               getSubscription (UUID UUID) {
 
         return subscriptionsMap.get(UUID);
     }
-    public final void                       setSubscription (UUID         UUID,
+    public final void                       setSubscription (UUID UUID,
                                                              Subscription subscription) {
 
         subscriptionsMap.put(UUID, subscription);
    }
+    public final void                       linkBroker      (Socket socket) {
+        synchronized (brokerLinkSync) {
+
+        }
+    }
+    public final void                       linkBroker      (InetSocketAddress addr) {
+        linkBroker(Util.getConnectedSocket(addr));
+    }
     public final void                       closeConnections() {
 
         for (var clientId: memberRequestsMap.keySet()) {
