@@ -11,45 +11,55 @@ import java.util.concurrent.CompletableFuture;
 
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
-import jl95.net.pubsub.util.Defaults;
 
 public class Test {
 
     public static boolean TEST_SAME_MEMBER  = true;
     public static boolean TEST_SAME_BROKER  = true;
-    public static boolean TEST_MULTI_BROKER = true;
+    public static boolean TEST_MULTI_BROKER_ONE_JUMP  = true;
+    public static boolean TEST_MULTI_BROKER_TWO_JUMPS = true;
 
     public Instant t0;
     public final InetSocketAddress brokerAddr1 = new InetSocketAddress("127.0.0.1", 42421);
     public final InetSocketAddress brokerAddr2 = new InetSocketAddress("127.0.0.1", 42422);
+    public final InetSocketAddress brokerAddr3 = new InetSocketAddress("127.0.0.1", 42423);
     public Broker broker1;
     public Broker broker2;
+    public Broker broker3;
     public Member member1;
     public Member member2;
     public Member member3;
+    public Member member4;
+    public Member member5;
+    public Member member6;
 
     @org.junit.Before
     public void setUp() {
         t0 = Instant.now();
         broker1 = new Broker(Util.getSimpleServerSocket(brokerAddr1));
         broker2 = new Broker(Util.getSimpleServerSocket(brokerAddr2));
-        broker1.startAccept().await();
-        broker2.startAccept().await();
+        broker3 = new Broker(Util.getSimpleServerSocket(brokerAddr3));
+        for (var broker: I(broker1, broker2, broker3)) {
+            broker.startAccept().await();
+        }
         broker1.linkBroker(brokerAddr2);
-        broker2.linkBroker(brokerAddr1);
+        broker2.linkBroker(brokerAddr3);
         member1 = new Member(brokerAddr1);
         member2 = new Member(brokerAddr1);
         member3 = new Member(brokerAddr2);
+        member4 = new Member(brokerAddr3);
+        member5 = new Member(brokerAddr3);
+        member6 = new Member(brokerAddr1);
     }
     @org.junit.After
     public void tearDown() {
-        member1.close();
-        member2.close();
-        member3.close();
-        broker1.stopAccept().await();
-        broker2.stopAccept().await();
-        uncheck(() -> broker1.getNetServer().getSocket().close());
-        uncheck(() -> broker2.getNetServer().getSocket().close());
+        for (var member: I(member1, member2, member3, member4, member5, member6)) {
+            member.close();
+        }
+        for (var broker: I(broker1, broker2, broker3)) {
+            broker.stopAccept().await();
+            uncheck(() -> broker.getNetServer().getSocket().close());
+        }
     }
 
     public void testPubSub         (Member producerMember, Member consumerMember) {
@@ -99,9 +109,15 @@ public class Test {
         testPubSub(member1, member2);
     }
     @org.junit.Test
-    public void testPubSubMultiBroker() {
-        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
+    public void testPubSubMultiBrokerOneJump() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
         testPubSub(member1, member3);
+    }
+    @org.junit.Test
+    public void testPubSubMultiBrokerTwoJumps() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_TWO_JUMPS);
+        testPubSub(member1, member4);
+        testPubSub(member5, member6);
     }
     @org.junit.Test
     public void testPubNoSubSameMember() {
@@ -114,9 +130,15 @@ public class Test {
         testPubNoSub(member1, member2);
     }
     @org.junit.Test
-    public void testPubNoSubMultiBroker() {
-        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
+    public void testPubNoSubMultiBrokerOneJump() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
         testPubNoSub(member1, member3);
+    }
+    @org.junit.Test
+    public void testPubNoSubMultiBrokerTwoJumps() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_TWO_JUMPS);
+        testPubNoSub(member1, member4);
+        testPubNoSub(member5, member6);
     }
     @org.junit.Test
     public void testPubNoSubThenSubSameMember() {
@@ -129,8 +151,14 @@ public class Test {
         testPubNoSubThenSub(member1, member2);
     }
     @org.junit.Test
-    public void testPubNoSubThenSubMultiBroker() {
-        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER);
+    public void testPubNoSubThenSubMultiBrokerOneJumps() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
         testPubNoSubThenSub(member1, member3);
+    }
+    @org.junit.Test
+    public void testPubNoSubThenSubMultiBrokerTwoJumps() {
+        org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
+        testPubNoSubThenSub(member1, member3);
+        testPubNoSubThenSub(member5, member6);
     }
 }
