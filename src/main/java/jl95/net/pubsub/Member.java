@@ -88,29 +88,29 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     private final Responding            responderIf;
     private       Method1<Publication>  pubCallback = (pub) -> {/* pass */};
 
-    private Member(CloseableIos      requesterIos,
-                   CloseableIos      responderIos) {
+    private Member(CloseableIos requestsIos,
+                   CloseableIos responsesIos) {
 
         this.closer   = unchecked(() -> {
-            requesterIos.close();
-            responderIos.close();
+            requestsIos.close();
+            responsesIos.close();
         });
-        this.requesterIf = new Requesting(requesterIos);
-        this.responderIf = new Responding(responderIos);
+        this.requesterIf = new Requesting(requestsIos);
+        this.responderIf = new Responding(responsesIos);
         var requestsHelloRequester = RequesterAdaptersCollection
-            .asPostRequester(Requester.fromIo(requesterIos))
+            .asPostRequester(Requester.fromIo(requestsIos))
             .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
         var responsesHelloRequester = RequesterAdaptersCollection
-            .asPostRequester(Requester.fromIo(responderIos))
+            .asPostRequester(Requester.fromIo(responsesIos))
             .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
         postMessage(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
         postMessage(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
     }
-    private Member(Socket            requesterSocket,
-                   Socket            responderSocket) {
+    private Member(Socket       requestsSocket,
+                   Socket       responsesSocket) {
 
-        this(CloseableIos.fromSocketLazy(requesterSocket),
-             CloseableIos.fromSocketLazy(responderSocket));
+        this(CloseableIos.fromSocketLazy(requestsSocket),
+             CloseableIos.fromSocketLazy(responsesSocket));
     }
 
     synchronized private <A> void postMessage   (A object, RequesterIf<Message<A>, Void> sender) {
