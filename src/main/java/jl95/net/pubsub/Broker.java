@@ -17,8 +17,8 @@ import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.util.BrokerResponsesConnection;
 import jl95.net.pubsub.util.Message;
-import jl95.net.pubsub.util.RequestingConnection;
-import jl95.net.pubsub.util.RespondingConnection;
+import jl95.net.pubsub.util.MemberResponsesConnection;
+import jl95.net.pubsub.util.MemberRequestsConnection;
 import jl95.net.io.util.Util;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
@@ -29,10 +29,11 @@ import jl95.net.rpc.collections.ResponderAdaptersCollection;
 
 public class Broker {
 
-    private final UUID                                  brokerId         = UUID.randomUUID();
-    private final StrictMap<UUID, RespondingConnection> respondingMap    = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, RequestingConnection> requestingMap    = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, Subscription>         subscriptionsMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final UUID brokerId = UUID.randomUUID();
+    private final StrictMap<UUID, MemberRequestsConnection> memberRequestsMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerResponsesConnection> brokerRespondingMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, Subscription>              subscriptionsMap    = StrictMap.of(new ConcurrentHashMap<>());
 
     private final jl95.net.Server netServer;
 
@@ -60,9 +61,9 @@ public class Broker {
         var memberId  = uncheck(() -> memberIdFuture.get());
         switch (helloType) {
             case MEMBER_REQUESTS -> {
-                var connection = new RespondingConnection(socket);
-                respondingMap.put(memberId, connection);
-                connection.setCloseReqHandler            (getCloseReqHandler(connection, memberId));
+                var connection = new MemberRequestsConnection(socket);
+                memberRequestsMap.put(memberId, connection);
+                connection.setCloseReqHandler   (decorate(getCloseReqHandler(connection, memberId)));
                 connection.setSubListReqHandler (decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubList (msg))));
                 connection.setSubRegexReqHandler(decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubRegex(msg))));
                 connection.setSubAllReqHandler  (decorate(getSubReqHandler  (connection, memberId, msg -> cbs -> cbs.onSubAll  (msg))));
@@ -71,9 +72,14 @@ public class Broker {
                 connection.startRespond().await();
             }
             case MEMBER_RESPONSES -> {
-                var connection = new RequestingConnection(socket);
-                requestingMap.put(memberId, connection);
-                connection.startPubQueue();
+                var connection = new MemberResponsesConnection(socket);
+                memberResponsesMap.put(memberId, connection);
+                connection.startQueueLoop();
+            }
+            case BROKER_RESPONSES -> {
+                var connection = new BrokerResponsesConnection(socket);
+                brokerRespondingMap.put(memberId, connection);
+                connection.startQueueLoop();
             }
             default -> throw new AssertionError();
         }
@@ -82,10 +88,10 @@ public class Broker {
         assert !helloResponder.isRunning();
     }
     private void                                     closeConnection     (UUID UUID) {
-        respondingMap.get   (UUID).close();
-        respondingMap.remove(UUID);
-        requestingMap.get   (UUID).close();
-        requestingMap.remove(UUID);
+        memberRequestsMap.get   (UUID).close();
+        memberRequestsMap.remove(UUID);
+        memberResponsesMap.get   (UUID).close();
+        memberResponsesMap.remove(UUID);
     }
     private <T>
             Function1<Boolean, Message<T>>           decorate            (Function1<Boolean, Message<T>> handler) {
@@ -94,22 +100,25 @@ public class Broker {
             return handler.apply(msg);
         };
     }
-    private Function1<Boolean, Message<Close>>       getCloseReqHandler  (RespondingConnection connection, UUID UUID) { return msg -> false; }
+    private Function1<Boolean, Message<Close>>       getCloseReqHandler  (MemberRequestsConnection connection, UUID UUID) { return msg -> false; }
     private <S extends Subscription>
-            Function1<Boolean, Message<S>>           getSubReqHandler    (RespondingConnection connection, UUID UUID, Function1<Method1<BrokerResponsesConnection.Callbacks>,Message<S>> brokerCbSupplier) {
+            Function1<Boolean, Message<S>>           getSubReqHandler    (MemberRequestsConnection connection, UUID UUID, Function1<Method1<BrokerResponsesConnection.Callbacks>,Message<S>> brokerCbSupplier) {
         return msg -> {
             setSubscription(UUID, msg.body);
-
+            for (var brokerConnection: brokerRespondingMap.values()) {
+                var brokerCb = brokerCbSupplier.apply(msg);
+                brokerConnection.addToQueue(brokerCb);
+            }
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>> getPubReqHandler    (RespondingConnection connection, UUID UUID) {
+    private Function1<Boolean, Message<Publication>> getPubReqHandler    (MemberRequestsConnection connection, UUID UUID) {
         return msg -> {
             var pub = msg.body;
             for (var UUIDOfOther: subscriptionsMap.keySet()) {
                 if (getSubscription(UUIDOfOther).accepts(pub.topicName)) {
-                    if (requestingMap.containsKey(UUIDOfOther)) {
-                        requestingMap.get(UUIDOfOther).pub(msg);
+                    if (memberResponsesMap.containsKey(UUIDOfOther)) {
+                        memberResponsesMap.get(UUIDOfOther).addToQueue(msg);
                     }
                 }
             }
@@ -134,12 +143,12 @@ public class Broker {
     }
     public final Iterable<UUID>             getMemberIds    () {
 
-        return I.of(respondingMap.keySet());
+        return I.of(memberRequestsMap.keySet());
     }
     public final Iterable<InetSocketAddress> getAddressesLazy() {
 
-        return I.of(respondingMap.values())
-                 .map(RespondingConnection::getSocket)
+        return I.of(memberRequestsMap.values())
+                 .map(MemberRequestsConnection::getSocket)
                  .map(socket -> new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
     }
     public final Set<InetSocketAddress>     getAddresses    () {
@@ -157,7 +166,7 @@ public class Broker {
    }
     public final void                       closeConnections() {
 
-        for (var clientId: respondingMap.keySet()) {
+        for (var clientId: memberRequestsMap.keySet()) {
             closeConnection(clientId);
         }
     }

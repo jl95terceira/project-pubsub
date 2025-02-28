@@ -1,6 +1,5 @@
 package jl95.net.pubsub.util;
 
-import static jl95.lang.SuperPowers.I;
 import static jl95.lang.SuperPowers.function;
 import static jl95.lang.SuperPowers.tuple;
 import static jl95.lang.SuperPowers.uncheck;
@@ -8,33 +7,17 @@ import static jl95.lang.SuperPowers.uncheck;
 import java.net.Socket;
 import java.util.concurrent.*;
 
-import javax.json.JsonValue;
-
 import jl95.lang.Awaitable;
-import jl95.lang.variadic.Function1;
 import jl95.net.io.Ios;
 import jl95.net.io.Sender;
-import jl95.net.io.SenderIf;
-import jl95.net.io.collections.SenderAdaptersCollections;
-import jl95.net.pubsub.Subscription;
-import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
-import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
-import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
-import jl95.net.rpc.collections.ResponderAdaptersCollection;
-import jl95.net.rpc.switched.TypeSwitchedResponder;
-import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 
-public class RequestingConnection {
+public class MemberResponsesConnection {
 
     private class MemberIf {
 
@@ -60,13 +43,13 @@ public class RequestingConnection {
     private final Socket                         socket;
     private final MemberIf                       memberIf;
 
-    public RequestingConnection(Socket socket) {
+    public MemberResponsesConnection(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.memberIf       = new MemberIf(ios);
     }
 
-    synchronized public final void            startPubQueue    () {
+    synchronized public final void            startQueueLoop() {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -81,25 +64,25 @@ public class RequestingConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final Awaitable<Void> stopPubQueue     () {
+    synchronized public final Awaitable<Void> stopQueueLoop () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
         return Awaitable.of(queueStopFuture);
     }
     synchronized public final Boolean         isPubQueueRunning() { return queueIsOn; }
 
-    public final void           pub      (Message<Publication> pubMsg) {
+    public final void           addToQueue(Message<Publication> pubMsg) {
 
         if (!isPubQueueRunning()) {
-            startPubQueue();
+            startQueueLoop();
 
         }
         queue.add(pubMsg);
     }
-    public final Socket         getSocket() { return socket; }
-    public final void           close    () {
+    public final Socket         getSocket () { return socket; }
+    public final void           close     () {
         if (isPubQueueRunning()) {
-            stopPubQueue().await();
+            stopQueueLoop().await();
         }
         uncheck(getSocket()::close);
     }

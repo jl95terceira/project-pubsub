@@ -9,7 +9,6 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.Function1;
 import jl95.net.io.Ios;
-import jl95.net.pubsub.Subscription;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
@@ -27,7 +26,7 @@ import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 
-public class RespondingConnection {
+public class MemberRequestsConnection {
 
     private class MemberIf {
 
@@ -68,7 +67,7 @@ public class RespondingConnection {
     private       Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
     private       Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
 
-    public RespondingConnection(Socket socket) {
+    public MemberRequestsConnection(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.memberIf       = new MemberIf(ios);
