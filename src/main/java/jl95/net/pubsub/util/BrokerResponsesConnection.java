@@ -32,7 +32,7 @@ import jl95.net.rpc.switched.TypedRequester;
 
 public class BrokerResponsesConnection {
 
-    private class MemberIf {
+    private static class MemberIf {
 
         public final RequesterIf<Message<Publication>,         Void> pubSender;
         public final RequesterIf<Message<SubscriptionByList>,  Void> subListSender;

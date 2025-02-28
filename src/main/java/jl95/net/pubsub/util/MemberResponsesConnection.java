@@ -19,7 +19,7 @@ import jl95.net.rpc.collections.RequesterAdaptersCollection;
 
 public class MemberResponsesConnection {
 
-    private class MemberIf {
+    private static class MemberIf {
 
         public final RequesterIf<Message<Publication>, Void> pubSender;
 
