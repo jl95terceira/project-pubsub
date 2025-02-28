@@ -125,7 +125,12 @@ public class Broker {
         return msg -> {
             msg.stamps.add(getBrokerId());
             var re = handler.apply(msg);
-            propagateReq(msg, brokerCbCallerSupplier.apply(msg));
+            for (var e: brokerResponsesMap.entrySet()) {
+                var brokerId         = e.getKey  ();
+                var brokerConnection = e.getValue();
+                if (msg.stamps.contains(brokerId)) continue;
+                brokerConnection.addToQueue(brokerCbCallerSupplier.apply(msg));
+            }
             return re;
         };
     }
@@ -140,24 +145,13 @@ public class Broker {
     private RequestHandler<Publication>getPubReqHandler  (UUID entityId) {
         return msg -> {
             var pub = msg.body;
-            for (var UUIDOfOther: subscriptionsMap.keySet()) {
-                if (getSubscription(UUIDOfOther).accepts(pub.topicName)) {
-                    if (memberResponsesMap.containsKey(UUIDOfOther)) {
-                        memberResponsesMap.get(UUIDOfOther).addToQueue(msg);
-                    }
-                }
+            for (var idOfOther: subscriptionsMap.keySet()) {
+                if (!getSubscription(idOfOther).accepts(pub.topicName)) continue;
+                if (!memberResponsesMap.containsKey(idOfOther)) continue;
+                memberResponsesMap.get(idOfOther).addToQueue(msg);
             }
             return true;
         };
-    }
-    private <T>
-            void                       propagateReq      (Message<T> msg, Method1<BrokerResponsesConnection.Callbacks> brokerCbCaller) {
-        for (var e: brokerResponsesMap.entrySet()) {
-            var brokerId         = e.getKey  ();
-            var brokerConnection = e.getValue();
-            if (msg.stamps.contains(brokerId)) continue;
-            brokerConnection.addToQueue(brokerCbCaller);
-        }
     }
     private void                       linkBroker        (Socket requestsSocket,
                                                           Socket responsesSocket) {
