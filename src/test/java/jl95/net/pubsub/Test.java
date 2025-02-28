@@ -26,12 +26,13 @@ public class Test {
     public Broker broker1;
     public Broker broker2;
     public Broker broker3;
-    public Member member1;
-    public Member member2;
-    public Member member3;
-    public Member member4;
-    public Member member5;
-    public Member member6;
+    public Member member1OfBroker1;
+    public Member member2OfBroker1;
+    public Member member1OfBroker2;
+    public Member member2OfBroker2;
+    public Member member1OfBroker3;
+    public Member member2OfBroker3;
+    public Member member3OfBroker1;
 
     @org.junit.Before
     public void setUp() {
@@ -44,16 +45,17 @@ public class Test {
         }
         broker1.linkBroker(brokerAddr2);
         broker2.linkBroker(brokerAddr3);
-        member1 = new Member(brokerAddr1);
-        member2 = new Member(brokerAddr1);
-        member3 = new Member(brokerAddr2);
-        member4 = new Member(brokerAddr3);
-        member5 = new Member(brokerAddr3);
-        member6 = new Member(brokerAddr1);
+        member1OfBroker1 = new Member(brokerAddr1);
+        member2OfBroker1 = new Member(brokerAddr1);
+        member1OfBroker2 = new Member(brokerAddr2);
+        member2OfBroker2 = new Member(brokerAddr2);
+        member1OfBroker3 = new Member(brokerAddr3);
+        member2OfBroker3 = new Member(brokerAddr3);
+        member3OfBroker1 = new Member(brokerAddr1);
     }
     @org.junit.After
     public void tearDown() {
-        for (var member: I(member1, member2, member3, member4, member5, member6)) {
+        for (var member: I(member1OfBroker1, member2OfBroker1, member1OfBroker2, member1OfBroker3, member2OfBroker3, member3OfBroker1)) {
             member.close();
         }
         for (var broker: I(broker1, broker2, broker3)) {
@@ -101,64 +103,67 @@ public class Test {
     @org.junit.Test
     public void testPubSubSameMember() {
         org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
-        testPubSub(member1, member1);
+        testPubSub(member1OfBroker1, member1OfBroker1);
     }
     @org.junit.Test
     public void testPubSubSameBroker() {
         org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
-        testPubSub(member1, member2);
+        testPubSub(member1OfBroker1, member2OfBroker1);
     }
     @org.junit.Test
     public void testPubSubMultiBrokerOneJump() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
-        testPubSub(member1, member3);
+        testPubSub(member1OfBroker1, member1OfBroker2);
+        testPubSub(member2OfBroker2, member1OfBroker3);
     }
     @org.junit.Test
     public void testPubSubMultiBrokerTwoJumps() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_TWO_JUMPS);
-        testPubSub(member1, member4);
-        testPubSub(member5, member6);
+        testPubSub(member1OfBroker1, member1OfBroker3);
+        testPubSub(member2OfBroker3, member3OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubSameMember() {
         org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
-        testPubNoSub(member1, member1);
+        testPubNoSub(member1OfBroker1, member1OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubSameBroker() {
         org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
-        testPubNoSub(member1, member2);
+        testPubNoSub(member1OfBroker1, member2OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubMultiBrokerOneJump() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
-        testPubNoSub(member1, member3);
+        testPubNoSub(member1OfBroker1, member1OfBroker2);
+        testPubNoSub(member2OfBroker2, member1OfBroker3);
     }
     @org.junit.Test
     public void testPubNoSubMultiBrokerTwoJumps() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_TWO_JUMPS);
-        testPubNoSub(member1, member4);
-        testPubNoSub(member5, member6);
+        testPubNoSub(member1OfBroker1, member1OfBroker3);
+        testPubNoSub(member2OfBroker3, member3OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubThenSubSameMember() {
         org.junit.Assume.assumeTrue(TEST_SAME_MEMBER);
-        testPubNoSubThenSub(member1, member1);
+        testPubNoSubThenSub(member1OfBroker1, member1OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubThenSubSameBroker() {
         org.junit.Assume.assumeTrue(TEST_SAME_BROKER);
-        testPubNoSubThenSub(member1, member2);
+        testPubNoSubThenSub(member1OfBroker1, member2OfBroker1);
     }
     @org.junit.Test
     public void testPubNoSubThenSubMultiBrokerOneJumps() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
-        testPubNoSubThenSub(member1, member3);
+        testPubNoSubThenSub(member1OfBroker1, member1OfBroker2);
+        testPubNoSubThenSub(member2OfBroker2, member1OfBroker3);
     }
     @org.junit.Test
     public void testPubNoSubThenSubMultiBrokerTwoJumps() {
         org.junit.Assume.assumeTrue(TEST_MULTI_BROKER_ONE_JUMP);
-        testPubNoSubThenSub(member1, member3);
-        testPubNoSubThenSub(member5, member6);
+        testPubNoSubThenSub(member1OfBroker1, member1OfBroker2);
+        testPubNoSubThenSub(member2OfBroker3, member3OfBroker1);
     }
 }
