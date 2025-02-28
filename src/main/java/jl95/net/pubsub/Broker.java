@@ -24,6 +24,7 @@ import jl95.net.pubsub.util.MemberRequestsConnection;
 import jl95.net.io.util.Util;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
+import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.protocol.HelloJsonSerdes;
@@ -31,6 +32,7 @@ import jl95.net.rpc.Requester;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.serdes.StringFromJson;
 
 public class Broker {
 
@@ -57,58 +59,26 @@ public class Broker {
     private void                        onAccept             (Socket socket) {
         var memberIdFuture = new CompletableFuture<UUID>();
         var helloTypeFuture  = new CompletableFuture<Hello.Type>();
-        var helloResponder   = ResponderAdaptersCollection.asPostResponder(Responder.fromIo(Ios.fromSocket(socket))).adaptedRequest(
-                MessageDeserializer.get(HelloJsonSerdes::fromJson));
+        var helloResponder   = Responder.fromIo(Ios.fromSocket(socket))
+                .adapted(MessageDeserializer.get(HelloJsonSerdes::fromJson), (UUID id) -> SerdesDefaults.stringToJson.apply(id.toString()));
         var acceptedFuture = new CompletableFuture<Void>();
         helloResponder.respondOnce(hello -> {
             helloTypeFuture .complete(hello.body.type);
             memberIdFuture.complete(hello.memberId);
             uncheck(() -> acceptedFuture.get());
-            return null;
+            return getBrokerId();
         }).await();
         var helloType = uncheck(() -> helloTypeFuture .get());
         var memberId  = uncheck(() -> memberIdFuture.get());
+        Method2<UUID, Socket> register;
         switch (helloType) {
-            case MEMBER_REQUESTS -> {
-                var connection = new MemberRequestsConnection(socket);
-                memberRequestsMap.put(memberId, connection);
-                connection.closeReqHandler    = decorated(getCloseReqHandler(memberId), msg -> cbs -> {});
-                connection.subListReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
-                connection.subRegexReqHandler = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
-                connection.subAllReqHandler   = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
-                connection.subNoneReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
-                connection.pubReqHandler      = decorated(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
-                connection.startRespond().await();
-            }
-            case MEMBER_RESPONSES -> {
-                var connection = new MemberResponsesConnection(socket);
-                memberResponsesMap.put(memberId, connection);
-                connection.startQueueLoop();
-            }
-            case BROKER_REQUESTS -> {
-                synchronized (brokerLinkSync) {
-                    if (brokerRequestsMap .containsKey(memberId)) break;
-                    var connection = new BrokerRequestsConnection(socket);
-                    brokerRequestsMap.put(memberId, connection);
-                    connection.closeReqHandler    = decorated(getCloseReqHandler(memberId), msg -> cbs -> {});
-                    connection.subListReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
-                    connection.subRegexReqHandler = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
-                    connection.subAllReqHandler   = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
-                    connection.subNoneReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
-                    connection.pubReqHandler      = decorated(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
-                    connection.startRespond().await();
-                }
-            }
-            case BROKER_RESPONSES -> {
-                synchronized (brokerLinkSync) {
-                    if (brokerResponsesMap.containsKey(memberId)) break;
-                    var connection = new BrokerResponsesConnection(socket);
-                    brokerResponsesMap.put(memberId, connection);
-                    connection.startQueueLoop();
-                }
-            }
+            case MEMBER_REQUESTS  -> register = this::registerMemberRequestsLink;
+            case MEMBER_RESPONSES -> register = this::registerMemberResponsesLink;
+            case BROKER_REQUESTS  -> register = this::registerBrokerRequestsLink;
+            case BROKER_RESPONSES -> register = this::registerBrokerResponsesLink;
             default -> throw new AssertionError();
         }
+        register.accept(memberId, socket);
         acceptedFuture.complete(null);
         helloResponder.stop().await();
         assert !helloResponder.isRunning();
@@ -158,22 +128,59 @@ public class Broker {
         synchronized (brokerLinkSync) {
             var requestsIos  = CloseableIos.fromSocketLazy(requestsSocket);
             var responsesIos = CloseableIos.fromSocketLazy(responsesSocket);
-            var requestsHelloRequester = RequesterAdaptersCollection
-                .asPostRequester(Requester.fromIo(requestsIos))
-                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-            var responsesHelloRequester = RequesterAdaptersCollection
-                .asPostRequester(Requester.fromIo(responsesIos))
-                .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
+            var requestsHelloRequester = Requester.fromIo(requestsIos)
+                .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
+                .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
+            var responsesHelloRequester = Requester.fromIo(responsesIos)
+                .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
+                .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
             for (var t: I(
-                tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester),
-                tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester)
+                tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester,  requestsSocket,  method(this::registerBrokerResponsesLink)),
+                tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester, responsesSocket, method(this::registerBrokerRequestsLink))
             )) {
                 var helloMsg = new Message<Hello>();
                 helloMsg.id       = UUID.randomUUID();
                 helloMsg.body     = new Hello(t.a1);
                 helloMsg.memberId = brokerId;
-                t.a2.apply(helloMsg);
+                var otherId = t.a2.apply(helloMsg);
+                t.a4.accept(otherId, t.a3);
             }
+        }
+    }
+    private void                       registerMemberRequestsLink (UUID memberId, Socket socket) {
+        var connection = new MemberRequestsConnection(socket);
+        memberRequestsMap.put(memberId, connection);
+        connection.closeReqHandler    = decorated(getCloseReqHandler(memberId), msg -> cbs -> {});
+        connection.subListReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
+        connection.subRegexReqHandler = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
+        connection.subAllReqHandler   = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
+        connection.subNoneReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
+        connection.pubReqHandler      = decorated(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
+        connection.startRespond().await();
+    }
+    private void                       registerMemberResponsesLink(UUID memberId, Socket socket) {
+        var connection = new MemberResponsesConnection(socket);
+        memberResponsesMap.put(memberId, connection);
+        connection.startQueueLoop();
+    }
+    private void                       registerBrokerRequestsLink (UUID otherId, Socket socket) {
+        synchronized (brokerLinkSync) {
+            var connection = new BrokerRequestsConnection(socket);
+            brokerRequestsMap.put(otherId, connection);
+            connection.closeReqHandler    = decorated(getCloseReqHandler(otherId), msg -> cbs -> {});
+            connection.subListReqHandler  = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubList (msg));
+            connection.subRegexReqHandler = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubRegex(msg));
+            connection.subAllReqHandler   = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubAll  (msg));
+            connection.subNoneReqHandler  = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubNone (msg));
+            connection.pubReqHandler      = decorated(getPubReqHandler  (otherId), msg -> cbs -> cbs.onPub     (msg));
+            connection.startRespond().await();
+        }
+    }
+    private void                       registerBrokerResponsesLink(UUID otherId, Socket socket) {
+        synchronized (brokerLinkSync) {
+            var connection = new BrokerResponsesConnection(socket);
+            brokerResponsesMap.put(otherId, connection);
+            connection.startQueueLoop();
         }
     }
 

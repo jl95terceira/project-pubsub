@@ -37,22 +37,40 @@ public class BrokerRequestsConnection {
             this.switchedResponder = ResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(PublicationJsonSerdes::fromJson))
-                .addCase(MessageType.PUBLISH.value, x -> { pubReqHandler.apply(x); return null; });
+                .addCase(MessageType.PUBLISH.value, x -> {
+                    pubReqHandler.apply(x);
+                    return null;
+                    });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(CloseJsonSerdes::fromJson))
-                .addCase(MessageType.REQ_CLOSE.value, x -> { closeReqHandler.apply(x); return null; });
+                .addCase(MessageType.REQ_CLOSE.value, x -> {
+                    closeReqHandler.apply(x);
+                    return null;
+                });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(SubscriptionByListJsonSerdes ::fromJson))
-                .addCase(MessageType.REQ_SUBSCRIPTION_BY_LIST.value, x -> { subListReqHandler.apply(x); return null; });
+                .addCase(MessageType.REQ_SUBSCRIPTION_BY_LIST.value, x -> {
+                    subListReqHandler.apply(x);
+                    return null;
+                });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(SubscriptionByRegexJsonSerdes ::fromJson))
-                .addCase(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, x -> { subRegexReqHandler.apply(x); return null; });
+                .addCase(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, x -> {
+                    subRegexReqHandler.apply(x);
+                    return null;
+                });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(SubscriptionToAllJsonSerdes ::fromJson))
-                .addCase(MessageType.REQ_SUBSCRIPTION_TO_ALL.value, x -> { subAllReqHandler.apply(x); return null; });
+                .addCase(MessageType.REQ_SUBSCRIPTION_TO_ALL.value, x -> {
+                    subAllReqHandler.apply(x);
+                    return null;
+                });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(SubscriptionToNoneJsonSerdes ::fromJson))
-                .addCase(MessageType.REQ_SUBSCRIPTION_TO_NONE.value, x -> { subNoneReqHandler.apply(x); return null; });
+                .addCase(MessageType.REQ_SUBSCRIPTION_TO_NONE.value, x -> {
+                    subNoneReqHandler.apply(x);
+                    return null;
+                });
         }
     }
 

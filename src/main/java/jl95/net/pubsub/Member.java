@@ -97,14 +97,12 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         });
         this.requesterIf = new Requesting(requestsIos);
         this.responderIf = new Responding(responsesIos);
-        var requestsHelloRequester = RequesterAdaptersCollection
-            .asPostRequester(Requester.fromIo(requestsIos))
+        var requestsHelloRequester  = Requester.fromIo(requestsIos)
             .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-        var responsesHelloRequester = RequesterAdaptersCollection
-            .asPostRequester(Requester.fromIo(responsesIos))
-            .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson));
-        postMessage(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
-        postMessage(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
+        var responsesHelloRequester = Requester.fromIo(responsesIos)
+            .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+        postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
+        postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
     }
     private Member(Socket       requestsSocket,
                    Socket       responsesSocket) {
@@ -113,10 +111,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
              CloseableIos.fromSocketLazy(responsesSocket));
     }
 
-    synchronized private <A> void postMessage   (A object, RequesterIf<Message<A>, Void> sender) {
-        postgetMessage(object, sender);
-    }
-    synchronized private <A, R> R postgetMessage(A object, RequesterIf<Message<A>, R> sender) {
+    synchronized private <A, R> R postget       (A object, RequesterIf<Message<A>, R> sender) {
         var msg = new Message<A>();
         msg.id       = UUID.randomUUID();
         msg.body     = object;
@@ -125,7 +120,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     synchronized private     void produce       (Publication pub) {
 
-        postMessage(pub, requesterIf.pubSender);
+        postget(pub, requesterIf.pubSender);
     }
     synchronized private     void onConsumed    (Method1<Publication> pubCallback) {
 
@@ -173,7 +168,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     public final UUID getMemberId     () { return memberId; }
     public final void close           () {
 
-        postMessage(new Close(), requesterIf.closeSender);
+        postget(new Close(), requesterIf.closeSender);
         closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
@@ -183,7 +178,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
         var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
-        postMessage(sub, requesterIf.subListSender);
+        postget(sub, requesterIf.subListSender);
     }
     public final void subscribeByList (Iterable<String>    topicNames) {
 
@@ -196,7 +191,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
         var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
-        postMessage(sub, requesterIf.subReSender);
+        postget(sub, requesterIf.subReSender);
     }
     public final void subscribeByRegex(String              topicPattern) {
 
@@ -207,13 +202,13 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     public final void subscribeToAll  () {
 
-        postMessage(new SubscriptionToAll(), requesterIf.subAllSender);
+        postget(new SubscriptionToAll(), requesterIf.subAllSender);
     }
     public final void subscribe       (SubscriptionToNone  sub) {
         subscribeToNone();
     }
     public final void subscribeToNone () {
 
-        postMessage(new SubscriptionToNone(), requesterIf.subNoneSender);
+        postget(new SubscriptionToNone(), requesterIf.subNoneSender);
     }
 }

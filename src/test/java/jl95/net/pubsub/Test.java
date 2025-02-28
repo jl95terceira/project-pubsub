@@ -15,7 +15,7 @@ import jl95.net.pubsub.util.Defaults;
 
 public class Test {
 
-    public static boolean TEST_MULTI_BROKER = false;
+    public static boolean TEST_MULTI_BROKER = true;
 
     public Instant t0;
     public final InetSocketAddress brokerAddr1 = new InetSocketAddress("127.0.0.1", 42421);
