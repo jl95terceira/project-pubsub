@@ -12,6 +12,10 @@ import jl95.net.io.Ios;
 import jl95.net.pubsub.Subscription;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
+import jl95.net.pubsub.protocol.SubscriptionByList;
+import jl95.net.pubsub.protocol.SubscriptionByRegex;
+import jl95.net.pubsub.protocol.SubscriptionToAll;
+import jl95.net.pubsub.protocol.SubscriptionToNone;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
@@ -32,33 +36,37 @@ public class RespondingConnection {
         public MemberIf(Ios ios) {
 
             this.switchedResponder = ResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
-            switchedResponder.adaptedRequest(MessageDeserializer.get(PublicationJsonSerdes::fromJson))
-                             .addCase       (MessageType.PUBLISH.value,
-                                             x -> { pubReqHandler.apply(x);
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(PublicationJsonSerdes::fromJson))
+                .addCase(MessageType.PUBLISH.value, x -> { pubReqHandler.apply(x);
                                             return null; });
-            switchedResponder.adaptedRequest(MessageDeserializer.get(CloseJsonSerdes::fromJson))
-                             .addCase       (MessageType.REQ_CLOSE.value,
-                                             x -> { closeReqHandler.apply(x);
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(CloseJsonSerdes::fromJson))
+                .addCase(MessageType.REQ_CLOSE.value, x -> { closeReqHandler.apply(x);
                                             return null; });
-            for (var t: I(
-                tuple(MessageType.REQ_SUBSCRIPTION_BY_LIST .value, function(SubscriptionByListJsonSerdes ::fromJson)),
-                tuple(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, function(SubscriptionByRegexJsonSerdes::fromJson)),
-                tuple(MessageType.REQ_SUBSCRIPTION_TO_ALL  .value, function(SubscriptionToAllJsonSerdes  ::fromJson)),
-                tuple(MessageType.REQ_SUBSCRIPTION_TO_NONE .value, function(SubscriptionToNoneJsonSerdes ::fromJson))
-            )) {
-                switchedResponder.adaptedRequest(MessageDeserializer.get(t.a2))
-                            .addCase       (t.a1, x -> { subReqHandler.apply(x);
-                                                      return null; });
-
-            }
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(SubscriptionByListJsonSerdes ::fromJson))
+                .addCase(MessageType.REQ_SUBSCRIPTION_BY_LIST.value, x -> { subListReqHandler.apply(x); return null; });
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(SubscriptionByRegexJsonSerdes ::fromJson))
+                .addCase(MessageType.REQ_SUBSCRIPTION_BY_REGEX.value, x -> { subRegexReqHandler.apply(x); return null; });
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(SubscriptionToAllJsonSerdes ::fromJson))
+                .addCase(MessageType.REQ_SUBSCRIPTION_TO_ALL.value, x -> { subAllReqHandler.apply(x); return null; });
+            switchedResponder
+                .adaptedRequest(MessageDeserializer.get(SubscriptionToNoneJsonSerdes ::fromJson))
+                .addCase(MessageType.REQ_SUBSCRIPTION_TO_NONE.value, x -> { subNoneReqHandler.apply(x); return null; });
         }
     }
 
     private final Socket   socket;
     private final MemberIf memberIf;
-    private       Function1<Boolean, Message<Close>>                  closeReqHandler = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<? extends Subscription>> subReqHandler   = x -> { throw new AssertionError(); };
-    private       Function1<Boolean, Message<Publication>>            pubReqHandler   = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<Close>>               closeReqHandler    = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<SubscriptionByList>>  subListReqHandler  = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<SubscriptionByRegex>> subRegexReqHandler = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<SubscriptionToAll>>   subAllReqHandler   = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
+    private       Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
 
     public RespondingConnection(Socket socket) {
         this.socket         = socket;
@@ -66,27 +74,37 @@ public class RespondingConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    public final Awaitable<Void> startRespond      () {
+    public final Awaitable<Void> startRespond         () {
 
 
         return memberIf.switchedResponder.start();
     }
-    public final Awaitable<Void> stopRespond       () {
+    public final Awaitable<Void> stopRespond          () {
 
         return memberIf.switchedResponder.stop();
     }
-    public final Boolean         isResponding      () {
+    public final Boolean         isResponding         () {
 
         return memberIf.switchedResponder.isRunning();
     }
-    public final void            setCloseReqHandler(Function1<Boolean, Message<Close>> h) {
+    public final void            setCloseReqHandler   (Function1<Boolean, Message<Close>>               h) {
         closeReqHandler = h;}
-    public final void            setSubReqHandler  (Function1<Boolean, Message<? extends Subscription>> h) {
-        subReqHandler = h;}
-    public final void            setPubReqHandler  (Function1<Boolean, Message<Publication>> h) {
+    public final void            setSubListReqHandler (Function1<Boolean, Message<SubscriptionByList>>  h) {
+        subListReqHandler = h;
+    }
+    public final void            setSubRegexReqHandler(Function1<Boolean, Message<SubscriptionByRegex>> h) {
+        subRegexReqHandler = h;
+    }
+    public final void            setSubAllReqHandler  (Function1<Boolean, Message<SubscriptionToAll>>   h) {
+        subAllReqHandler = h;
+    }
+    public final void            setSubNoneReqHandler (Function1<Boolean, Message<SubscriptionToNone>>  h) {
+        subNoneReqHandler = h;
+    }
+    public final void            setPubReqHandler     (Function1<Boolean, Message<Publication>>         h) {
         pubReqHandler = h;}
-    public final Socket          getSocket         () { return socket; }
-    public final void            close             () {
+    public final Socket          getSocket            () { return socket; }
+    public final void            close                () {
         if (isResponding()) {
             stopRespond();
         }

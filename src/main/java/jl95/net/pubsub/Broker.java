@@ -43,7 +43,7 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private void                                                onAccept            (Socket socket) {
+    private void                                     onAccept            (Socket socket) {
         var memberIdFuture = new CompletableFuture<UUID>();
         var helloTypeFuture  = new CompletableFuture<Hello.Type>();
         var helloResponder   = ResponderAdaptersCollection.asPostResponder(Responder.fromIo(Ios.fromSocket(socket))).adaptedRequest(
@@ -61,12 +61,15 @@ public class Broker {
             case MEMBER_REQUESTS -> {
                 var connection = new RespondingConnection(socket);
                 respondingMap.put(memberId, connection);
-                connection.setCloseReqHandler          (getCloseReqHandler(connection, memberId));
-                connection.setSubReqHandler  (decorate2(getSubReqHandler  (connection, memberId)));
-                connection.setPubReqHandler  (decorate (getPubReqHandler  (connection, memberId)));
+                connection.setCloseReqHandler            (getCloseReqHandler(connection, memberId));
+                connection.setSubListReqHandler (decorate(getSubReqHandler  (connection, memberId)));
+                connection.setSubRegexReqHandler(decorate(getSubReqHandler  (connection, memberId)));
+                connection.setSubAllReqHandler  (decorate(getSubReqHandler  (connection, memberId)));
+                connection.setSubNoneReqHandler (decorate(getSubReqHandler  (connection, memberId)));
+                connection.setPubReqHandler     (decorate(getPubReqHandler  (connection, memberId)));
                 connection.startRespond().await();
             }
-            case MEMBER_RESPONSES   -> {
+            case MEMBER_RESPONSES -> {
                 var connection = new RequestingConnection(socket);
                 requestingMap.put(memberId, connection);
                 connection.startPubQueue();
@@ -77,34 +80,30 @@ public class Broker {
         helloResponder.stop().await();
         assert !helloResponder.isRunning();
     }
-    private void                                                closeConnection     (UUID UUID) {
+    private void                                     closeConnection     (UUID UUID) {
         respondingMap.get   (UUID).close();
         respondingMap.remove(UUID);
         requestingMap.get   (UUID).close();
         requestingMap.remove(UUID);
     }
-    private <T> Function1<Boolean, Message<T>>                  decorate            (Function1<Boolean, Message<T>> handler) {
+    private <T>
+            Function1<Boolean, Message<T>>           decorate            (Function1<Boolean, Message<T>> handler) {
         return req -> {
             req.stamps.add(getBrokerId());
             return handler.apply(req);
         };
     }
-    private <T> Function1<Boolean, Message<? extends T>>        decorate2           (Function1<Boolean, Message<? extends T>> handler) {
-        return req -> {
-            req.stamps.add(getBrokerId());
-            return handler.apply(req);
-        };
-    }
-    private Function1<Boolean, Message<Close>>                  getCloseReqHandler  (RespondingConnection connection, UUID UUID) { return req -> {
+    private Function1<Boolean, Message<Close>>       getCloseReqHandler  (RespondingConnection connection, UUID UUID) { return req -> {
         return false;
     }; }
-    private Function1<Boolean, Message<? extends Subscription>> getSubReqHandler    (RespondingConnection connection, UUID UUID) {
+    private <S extends Subscription>
+            Function1<Boolean, Message<S>>           getSubReqHandler    (RespondingConnection connection, UUID UUID) {
         return req -> {
             setSubscription(UUID, req.body);
             return true;
         };
     }
-    private Function1<Boolean, Message<Publication>>            getPubReqHandler    (RespondingConnection connection, UUID UUID) {
+    private Function1<Boolean, Message<Publication>> getPubReqHandler    (RespondingConnection connection, UUID UUID) {
         return req -> {
             var pub = req.body;
             for (var UUIDOfOther: subscriptionsMap.keySet()) {
