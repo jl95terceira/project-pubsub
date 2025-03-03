@@ -128,7 +128,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
 
     public Member(InetSocketAddress brokerAddr) {
-        this(Util.getConnectedSocket(brokerAddr), Util.getConnectedSocket(brokerAddr));
+        this(Util.getSocketByConnect(brokerAddr), Util.getSocketByConnect(brokerAddr));
     }
 
     @Override
