@@ -6,24 +6,39 @@ import java.io.OutputStream;
 
 import jl95.lang.variadic.ExceptFunction1;
 import jl95.lang.variadic.ExceptMethod1;
+import jl95.lang.variadic.Function1;
+import jl95.lang.variadic.Method1;
+import jl95.net.io.Ios;
 
 public interface ManagedIos {
 
-    <T> T withInput (ExceptFunction1<T, IOException, InputStream> f);
-    <T> T withOutput(ExceptFunction1<T, IOException, OutputStream> f);
+    <T> T withInput (Function1<T, InputStream>  f);
+    <T> T withOutput(Function1<T, OutputStream> f);
 
-    default void  withInput (ExceptMethod1<IOException, InputStream> f) {
+    default void  withInput (Method1<InputStream> f) {
 
         this.<Void>withInput(in -> {
             f.accept(in);
             return null;
         });
     }
-    default void  withOutput(ExceptMethod1<IOException, OutputStream> f) {
+    default void  withOutput(Method1<OutputStream> f) {
 
         this.<Void>withOutput(out -> {
             f.accept(out);
             return null;
         });
     }
+
+    static ManagedIos of(Ios ios) { return new ManagedIos() {
+        @Override
+        public <T> T withInput(Function1<T, InputStream> f) {
+            return f.apply(ios.getInputStream());
+        }
+
+        @Override
+        public <T> T withOutput(Function1<T, OutputStream> f) {
+            return f.apply(ios.getOutputStream());
+        }
+    }; }
 }

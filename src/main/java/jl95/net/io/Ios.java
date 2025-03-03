@@ -7,7 +7,10 @@ import static jl95.lang.SuperPowers.unchecked;
 import java.io.*;
 import java.net.Socket;
 
+import jl95.lang.variadic.ExceptFunction1;
 import jl95.lang.variadic.Function0;
+import jl95.lang.variadic.Function1;
+import jl95.net.io.managed.ManagedIos;
 import jl95.net.io.util.InputStreams;
 import jl95.net.io.util.OutputStreams;
 
@@ -19,8 +22,8 @@ public interface Ios {
     static Ios of        (Function0<InputStream>  in,
                           Function0<OutputStream> out) {
         return new Ios() {
-            @Override public InputStream getInputStream() {
-                return in.apply();
+            @Override public InputStream  getInputStream () {
+                return in .apply();
             }
             @Override public OutputStream getOutputStream() {
                 return out.apply();

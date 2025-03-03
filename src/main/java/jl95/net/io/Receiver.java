@@ -2,14 +2,18 @@ package jl95.net.io;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import static jl95.lang.SuperPowers.sleep;
+import static jl95.lang.SuperPowers.uncheck;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
+import jl95.net.io.managed.ManagedIs;
 
 public class Receiver implements ReceiverIf<byte[]> {
 

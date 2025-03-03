@@ -1,8 +1,10 @@
 package jl95.net.io.managed;
 
 import static jl95.lang.SuperPowers.*;
-import static jl95.net.io.util.Util.getConnectedSocket;
+import static jl95.net.io.util.Util.getSocketByConnect;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
 import jl95.lang.I;
@@ -18,13 +20,18 @@ public class SwitchingIos extends BufferedRetriableIos {
         if (!addressesIterator.value.hasNext()) {
             throw new IllegalArgumentException("addresses list must not be empty");
         }
-        return () -> Ios.fromSocketLazy(getConnectedSocket(addressesIterator.value.next()));
+        return () -> Ios.fromSocketLazy(getSocketByConnect(addressesIterator.value.next()));
     }
 
-    public SwitchingIos(InetSocketAddress address) {
-        this(I(address));
+    private final Function0<Ios> iosSupplier;
+
+    private SwitchingIos(Function0<Ios> iosSupplier) {
+        super(iosSupplier);
+        this.iosSupplier = iosSupplier;
     }
-    public SwitchingIos(Iterable<InetSocketAddress> addresses) {
-        super(getIosProxy(addresses));
+
+    public SwitchingIos(InetSocketAddress... addresses) {
+        this(I(addresses));
     }
+    public SwitchingIos(Iterable<InetSocketAddress> addresses) { this(getIosProxy(addresses)); }
 }

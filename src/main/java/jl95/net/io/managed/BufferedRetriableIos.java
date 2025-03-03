@@ -22,7 +22,7 @@ public class BufferedRetriableIos implements ManagedIos {
     private void  reloadIos() {
         ios = iosSupplier.apply();
     }
-    private <T> T retried(ExceptFunction0<T, IOException> f) {
+    private <T> T retried(Function0<T> f) {
         var retriesSoFar = 0;
         while (true) {
             try {
@@ -32,12 +32,12 @@ public class BufferedRetriableIos implements ManagedIos {
                 try {
                     return f.apply();
                 }
-                catch (IOException ex) {
+                catch (Exception ex) {
                     reloadIos();
                     throw ex;
                 }
             }
-            catch (IOException ex) {
+            catch (Exception ex) {
                 if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
                     throw new NoMoreRetriesException();
                 }
@@ -46,7 +46,7 @@ public class BufferedRetriableIos implements ManagedIos {
             }
         }
     }
-    private void  retried(ExceptMethod0<IOException> f) {
+    private void  retried(Method0      f) {
         this.<Void>retried(() -> { f.accept(); return null; });
     }
 
@@ -59,10 +59,10 @@ public class BufferedRetriableIos implements ManagedIos {
     public final void  setRetryPredicate(Function1<Boolean, Integer> f) { this.retryPredicate = f; }
     public final void  setRetryLimit    (Integer max) { setRetryPredicate(n -> n <= max); }
 
-    public final <T> T withInput (ExceptFunction1<T, IOException, InputStream> f) {
-        return retried(() -> f.apply(ios.getInputStream()));
+    public final <T> T withInput (Function1<T, InputStream>  f) {
+        return retried(() -> f.apply(ios.getInputStream ()));
     }
-    public final <T> T withOutput(ExceptFunction1<T, IOException, OutputStream> f) {
+    public final <T> T withOutput(Function1<T, OutputStream> f) {
         return retried(() -> f.apply(ios.getOutputStream()));
     }
 }
