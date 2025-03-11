@@ -17,10 +17,10 @@ public class TestSwitching {
         var receiverSocket1Future = Util.getSocketByAcceptFuture(addr1);
         var receiverSocket2Future = Util.getSocketByAcceptFuture(addr2);
 //        var sender = Sender.of(InputStreams.getLazy(new SwitchingIos(addr1, addr2)));
-        var receiver1 = receiverSocket1Future.await();
-        var receiver2 = receiverSocket2Future.await();
+//        var receiver1 = receiverSocket1Future.await();
+//        var receiver2 = receiverSocket2Future.await();
 //        sender.close();
-        receiver1.close();
-        receiver2.close();
+//        receiver1.close();
+//        receiver2.close();
     }
 }

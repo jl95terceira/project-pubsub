@@ -2,7 +2,6 @@ package jl95.net.io;
 
 import static jl95.lang.SuperPowers.constant;
 
-import java.io.IOException;
 import java.io.InputStream;
 
 import jl95.lang.Awaitable;
@@ -16,27 +15,24 @@ public interface ReceiverIf<T> {
     interface RecvOptions {
 
         void    afterStop          ();
-        void    onHandlingException(Exception   ex);
-        void    onIoException      (IOException ex);
-        void    onProtocolException(Exception   ex);
+        void    onInputException   (Exception ex);
+        void    onHandlingException(Exception ex);
         void    onInputTimeout     ();
         Integer inputRetryTimeoutMs();
         
         class Editable implements RecvOptions {
 
-            public Method0              afterStop           = () -> {};
-            public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception while handling incoming: %s%n", ex);
-            public Method1<IOException> ioExcHandler        = (ex) -> System.out.printf("Exception while reading incoming (IO): %s%n", ex);
-            public Method1<Exception>   protocolExcHandler  = (ex) -> System.out.printf("Exception while parsing incoming (protocol): %s%n", ex);
-            public Method0              inputTimeoutHandler = () ->  {};
+            public Method0              afterStop           = ()   -> {};
+            public Method1<Exception>   inputExcHandler     = (ex) -> System.out.printf("Exception on reading input: %s%n", ex);
+            public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception on handling input: %s%n", ex);
+            public Method0              inputTimeoutHandler = ()   ->  {};
             public Function0<Integer>   inputRetryTimeoutMs = constant(50);
 
-            @Override public void afterStop          ()               { afterStop         .accept(); }
-            @Override public void onHandlingException(Exception   ex) { handlingExcHandler.accept(ex); }
-            @Override public void onIoException      (IOException ex) { ioExcHandler      .accept(ex); }
-            @Override public void onProtocolException(Exception   ex) { protocolExcHandler.accept(ex); }
-            @Override public void onInputTimeout     ()               { inputTimeoutHandler.accept(); }
-            @Override public Integer inputRetryTimeoutMs()            { return inputRetryTimeoutMs.apply(); }
+            @Override public void afterStop          ()             { afterStop          .accept(); }
+            @Override public void onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
+            @Override public void onInputException   (Exception ex) { inputExcHandler    .accept(ex); }
+            @Override public void onInputTimeout     ()             { inputTimeoutHandler.accept(); }
+            @Override public Integer inputRetryTimeoutMs()          { return inputRetryTimeoutMs.apply(); }
         }
         static RecvOptions defaults() {
             return new RecvOptions.Editable();

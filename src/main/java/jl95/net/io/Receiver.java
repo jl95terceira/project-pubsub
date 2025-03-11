@@ -1,13 +1,11 @@
 package jl95.net.io;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.uncheck;
 
@@ -20,19 +18,22 @@ public class Receiver implements ReceiverIf<byte[]> {
     public static class AlreadyReceivingException extends RuntimeException {}
     public static class NotYetReceivingException  extends RuntimeException {}
 
-    public static Receiver of(InputStream is) {
+    public static Receiver of(ManagedIs   is) {
         return new Receiver(is);
     }
+    public static Receiver of(InputStream is) {
+        return new Receiver(ManagedIs.of(is));
+    }
 
-    private final    InputStream             in;
+    private final    ManagedIs               mis;
     private final    ThreadPoolExecutor      pool = new ScheduledThreadPoolExecutor(1);
     private volatile Boolean                 isReceiving = false;
     private volatile Boolean                 toStop      = false;
     private          CompletableFuture<Void> startFuture;
     private          CompletableFuture<Void> stopFuture;
 
-    private Receiver(InputStream is) {
-        this.in = is;
+    private Receiver(ManagedIs is) {
+        this.mis = is;
     }
 
     @Override
@@ -48,36 +49,38 @@ public class Receiver implements ReceiverIf<byte[]> {
         pool.execute(() -> {
             startFuture.complete(null);
             while (!toStop) {
-                byte[] incoming;
+                var incoming = new Ref<byte[]>();
                 try {
                     try {
-                        if (in.available() == 0) {
-                            options.onInputTimeout();
-                            sleep(options.inputRetryTimeoutMs());
+                        var continueLoop = mis.withInput(is -> { return uncheck(() -> {
+                            if (is.available() == 0) {
+                                options.onInputTimeout();
+                                sleep(options.inputRetryTimeoutMs());
+                                return true;
+                            }
+                            var sizeSize        = is.read();
+                            if (sizeSize == -1) {
+                                options.onInputTimeout();
+                                sleep(options.inputRetryTimeoutMs());
+                                return true;
+                            }
+                            var sizeAsBytes     = new byte[sizeSize];
+                            is.read(sizeAsBytes, 0, sizeSize);
+                            var size            = new java.math.BigInteger(sizeAsBytes).intValue();
+                            incoming.value      = new byte[size];
+                            is.read(incoming.value, 0, size);
+                            return false;
+                        }); });
+                        if (continueLoop) {
                             continue;
                         }
-                        var sizeSize        = in.read();
-                        if (sizeSize == -1) {
-                            options.onInputTimeout();
-                            sleep(options.inputRetryTimeoutMs());
-                            continue;
-                        }
-                        var sizeAsBytes     = new byte[sizeSize];
-                        in.read(sizeAsBytes, 0, sizeSize);
-                        var size            = new java.math.BigInteger(sizeAsBytes).intValue();
-                        incoming            = new byte[size];
-                        in.read(incoming, 0, size);
-                    }
-                    catch (IOException ex) {
-                        options.onIoException(ex);
-                        break;
                     }
                     catch (Exception   ex) {
-                        options.onProtocolException(ex);
+                        options.onInputException(ex);
                         break;
                     }
                     try {
-                        var toContinue = incomingCbToContinue.apply(incoming);
+                        var toContinue = incomingCbToContinue.apply(incoming.value);
                         if (!toContinue) {
                             toStop = true;
                         }
@@ -88,7 +91,7 @@ public class Receiver implements ReceiverIf<byte[]> {
                     }
                 }
                 catch (Exception ex) {
-                    System.out.println("UNHANDLED FOLLOW-UP EXCEPTION - stop recv");
+                    System.out.println("Receiver: UNHANDLED FOLLOW-UP EXCEPTION - stop recv");
                     ex.printStackTrace();
                     break;
                 }
@@ -114,5 +117,5 @@ public class Receiver implements ReceiverIf<byte[]> {
         return isReceiving;
     }
     @Override
-    public final InputStream       getInputStream() { return in; }
-}
+    public final InputStream       getInputStream() { return mis.getInputStream(); }
+  }

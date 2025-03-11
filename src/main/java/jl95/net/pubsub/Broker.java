@@ -6,13 +6,19 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import jl95.lang.AutoMapper;
+import jl95.lang.AutoMappersCollection;
 import jl95.lang.Awaitable;
 import jl95.lang.StrictMap;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
+import jl95.net.pubsub.listen.UpdateSubscription;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
@@ -35,15 +41,20 @@ public class Broker {
 
     interface RequestHandler<T> extends Function1<Boolean, Message<T>> {}
 
+    // id
     private final UUID brokerId = UUID.randomUUID();
+    // pub-sub management
     private final StrictMap<UUID, MemberRequestsConnection>  memberRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
     private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
     private final StrictMap<UUID, BrokerRequestsConnection>  brokerRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
     private final StrictMap<UUID, BrokerResponsesConnection> brokerResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
     private final Object                                     brokerLinkSync     = new Object();
     private final StrictMap<UUID, Subscription>              subscriptionsMap   = StrictMap.of(new ConcurrentHashMap<>());
-
+    // networking
     private final jl95.net.Server netServer;
+    // listeners
+    private final StrictMap <UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionMap        = StrictMap.of(new ConcurrentHashMap<>());
+    private final AutoMapper<UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionAutoMapper = AutoMappersCollection.getUuidAutoMapper(listenersOnUpdateSubscriptionMap);
 
     public Broker(ServerSocket      socket) {
         this.netServer = new jl95.net.Server(socket);
@@ -108,6 +119,7 @@ public class Broker {
             RequestHandler<S>          getSubReqHandler  (UUID entityId) {
         return msg -> {
             setSubscription(msg.memberId, msg.body);
+            notifyListenersUpdateSubscription(new UpdateSubscription(msg.memberId, msg.body));
             return true;
         };
     }
@@ -182,6 +194,12 @@ public class Broker {
             connection.startQueueLoop();
         }
     }
+    // listeners
+    private void                       notifyListenersUpdateSubscription(UpdateSubscription update) {
+        for (var listener: listenersOnUpdateSubscriptionMap.values()) {
+            listener.accept(update);
+        }
+    }
 
     public final Awaitable<Void>            startAccept     () {
 
@@ -234,5 +252,12 @@ public class Broker {
     public final void                       close           () {
         closeConnections();
         getNetServer().close();
+    }
+    // listeners
+    public final UUID                       addListenerOnUpdateSubscription   (Method1<UpdateSubscription> listener) {
+        return listenersOnUpdateSubscriptionAutoMapper.put(listener);
+    }
+    public final void                       removeListenerOnUpdateSubscription(UUID listenerId) {
+        listenersOnUpdateSubscriptionMap.remove(listenerId);
     }
 }

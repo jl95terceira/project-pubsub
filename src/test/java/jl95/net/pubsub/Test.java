@@ -1,9 +1,6 @@
 package jl95.net.pubsub;
 
-import static jl95.lang.SuperPowers.I;
-import static jl95.lang.SuperPowers.sleep;
-import static jl95.lang.SuperPowers.tuple;
-import static jl95.lang.SuperPowers.uncheck;
+import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
@@ -33,6 +30,10 @@ public class Test {
     public Member member1OfBroker3;
     public Member member2OfBroker3;
     public Member member3OfBroker1;
+
+    private void zzz() {
+        sleep(125);
+    }
 
     @org.junit.Before
     public void setUp() {
@@ -66,35 +67,53 @@ public class Test {
 
     public void testPubSub         (Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
+        System.out.println("consume");
         MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
+        zzz();
+        System.out.println("subscribe");
         consumerMember.subscribeByList(I("foo"));
+        zzz();
+        System.out.println("produce");
         MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        sleep(125);
+        zzz();
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
     }
     public void testPubNoSub       (Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
+        System.out.println("consume");
         MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
+        zzz();
+        System.out.println("produce");
         MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        sleep(125);
+        zzz();
+        System.out.println("assert consumed");
         org.junit.Assert.assertFalse(msgFuture.isDone());
     }
     public void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
         var msgFuture = new CompletableFuture<String>();
+        System.out.println("consume");
         MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
             msgFuture.complete(payload);
         });
-        sleep(125);
+        zzz();
+        System.out.println("produce");
         MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
+        zzz();
+        System.out.println("assert NOT consumed (since not subscribed)");
         org.junit.Assert.assertFalse(msgFuture.isDone());
+        System.out.println("subscribe");
         consumerMember.subscribeByList(I("foo"));
+        zzz();
+        System.out.println("produce");
         MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        sleep(125);
+        zzz();
+        System.out.println("assert consumed");
         org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
+        System.out.println("done");
     }
 
     @org.junit.Test

@@ -22,7 +22,7 @@ public class BufferedRetriableIos implements ManagedIos {
     private void  reloadIos() {
         ios = iosSupplier.apply();
     }
-    private <T> T retried(Function0<T> f) {
+    private <T> T retried(Function1<T, Ios> f) {
         var retriesSoFar = 0;
         while (true) {
             try {
@@ -30,7 +30,7 @@ public class BufferedRetriableIos implements ManagedIos {
                     reloadIos();
                 }
                 try {
-                    return f.apply();
+                    return f.apply(ios);
                 }
                 catch (Exception ex) {
                     reloadIos();
@@ -46,9 +46,6 @@ public class BufferedRetriableIos implements ManagedIos {
             }
         }
     }
-    private void  retried(Method0      f) {
-        this.<Void>retried(() -> { f.accept(); return null; });
-    }
 
     public BufferedRetriableIos(Function0<Ios> iosSupplier) {
 
@@ -60,9 +57,10 @@ public class BufferedRetriableIos implements ManagedIos {
     public final void  setRetryLimit    (Integer max) { setRetryPredicate(n -> n <= max); }
 
     public final <T> T withInput (Function1<T, InputStream>  f) {
-        return retried(() -> f.apply(ios.getInputStream ()));
+        return retried((ios) -> f.apply(ios.getInputStream ()));
     }
     public final <T> T withOutput(Function1<T, OutputStream> f) {
-        return retried(() -> f.apply(ios.getOutputStream()));
+        return retried((ios) -> f.apply(ios.getOutputStream()));
     }
+    public final <T> T withIo    (Function2<T, InputStream, OutputStream> f) { return retried((ios) -> f.apply(ios.getInputStream(), ios.getOutputStream())); }
 }

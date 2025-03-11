@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +66,7 @@ public class BrokerResponsesConnection {
     }
 
     private final BlockingQueue<Method1<Callbacks>>
-                            queue          = new ArrayBlockingQueue<>(20);
+                            queue          = new LinkedBlockingQueue<>();
     private final ThreadPoolExecutor
                             pool           = new ScheduledThreadPoolExecutor(1);
     private      CompletableFuture<Void>
