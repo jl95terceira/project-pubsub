@@ -32,8 +32,14 @@ public class Receiver implements ReceiverIf<byte[]> {
     private          CompletableFuture<Void> startFuture;
     private          CompletableFuture<Void> stopFuture;
 
-    private Receiver(ManagedIs is) {
-        this.mis = is;
+    private Receiver(ManagedIs mis) {
+
+        this.mis = mis;
+        flushInputStream();
+    }
+
+    public final void flushInputStream() {
+        mis.withInput(is -> {});
     }
 
     @Override

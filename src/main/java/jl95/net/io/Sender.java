@@ -18,7 +18,13 @@ public class Sender implements SenderIf<byte[]> {
     private final ManagedOs mos;
 
     private Sender(ManagedOs mos) {
+
         this.mos = mos;
+        flushOutputStream();
+    }
+
+    public final void flushOutputStream() {
+        mos.withOutput(os -> {});
     }
 
     @Override

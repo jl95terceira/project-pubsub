@@ -37,9 +37,9 @@ public class TestTypeSwitched {
     }
     @org.junit.After
     public void tearDown() {
+        if (responder.isRunning()) responder.stop().await();
         if (ioAsClient != null) ioAsClient.close();
         if (ioAsServer != null) ioAsServer.close();
-        if (responder.isRunning()) responder.stop().await();
     }
 
     @org.junit.Test

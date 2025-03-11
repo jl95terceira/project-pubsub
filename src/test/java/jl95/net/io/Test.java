@@ -48,6 +48,9 @@ public class Test {
     @org.junit.After
     public void tearDown() throws Exception {
         sender  .getOutputStream().close();
+        if (receiver.isReceiving()) {
+            receiver.recvStop();
+        }
         receiver.getInputStream ().close();
     }
 
