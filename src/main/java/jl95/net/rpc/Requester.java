@@ -94,6 +94,7 @@ public class Requester implements RequesterIf<JsonValue, JsonValue> {
         if (rsd.status == ResponseExceptionalStatus.FAIL_TIMEOUT) {
             throw new ResponseTimeoutException();
         }
+        receiver.ensureStopped(); // to prevent races between consecutive requests (could cause illegal receiver state exceptions)
         return rsd.response.payload;
     }
 

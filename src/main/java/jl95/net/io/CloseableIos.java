@@ -9,9 +9,7 @@ import java.net.Socket;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method1;
 
-public interface CloseableIos extends Ios {
-
-    void close();
+public interface CloseableIos extends Ios, Closeable {
 
     static CloseableIos of(Ios ios) { return of(ios, self -> {}); }
     static CloseableIos of(InputStream  is,

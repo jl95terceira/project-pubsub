@@ -70,6 +70,14 @@ public interface ReceiverIf<T> {
     default Awaitable<Void> recvOnce     (Method1<T>            incomingCb) {
         return recvOnce(incomingCb, RecvOptions.defaults());
     }
+    default void            ensureStopped() {
+        try {
+            recvStop().await();
+        }
+        catch (Receiver.NotReceivingException ex) {
+            return;
+        }
+    }
     default <T2> ReceiverIf<T2> adaptedReceiver(Function1<T2, T> adapterFunction) {
         return new ReceiverIf<>() {
 

@@ -16,7 +16,7 @@ import jl95.net.io.managed.ManagedIs;
 public class Receiver implements ReceiverIf<byte[]> {
 
     public static class AlreadyReceivingException extends RuntimeException {}
-    public static class NotYetReceivingException  extends RuntimeException {}
+    public static class NotReceivingException extends RuntimeException {}
 
     public static Receiver of(ManagedIs   is) {
         return new Receiver(is);
@@ -36,6 +36,11 @@ public class Receiver implements ReceiverIf<byte[]> {
 
         this.mis = mis;
         flushInputStream();
+    }
+
+    private Awaitable<Void> recvStopUnchecked() {
+        toStop = true; // to be checked in loop, after which the future above will be completed
+        return Awaitable.of(stopFuture);
     }
 
     public final void flushInputStream() {
@@ -112,10 +117,9 @@ public class Receiver implements ReceiverIf<byte[]> {
     synchronized public final Awaitable<Void> recvStop     () {
 
         if (!isReceiving) {
-            throw new NotYetReceivingException();
+            throw new NotReceivingException();
         }
-        toStop = true; // to be checked in loop, after which the future above will be completed
-        return Awaitable.of(stopFuture);
+        return recvStopUnchecked();
     }
 
     @Override
