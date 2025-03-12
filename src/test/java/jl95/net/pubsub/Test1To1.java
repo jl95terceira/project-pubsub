@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
 
-public class Test {
+public class Test1To1 {
 
     public static boolean TEST_SAME_MEMBER  = true;
     public static boolean TEST_SAME_BROKER  = true;
