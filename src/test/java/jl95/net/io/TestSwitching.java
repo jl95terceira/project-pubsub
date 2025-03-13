@@ -1,12 +1,12 @@
 package jl95.net.io;
 
-import static jl95.lang.SuperPowers.sleep;
+import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import jl95.lang.I;
+import jl95.lang.*;
 import jl95.net.io.managed.SwitchingRetriableClientIos;
 import jl95.net.io.util.Util;
 
@@ -79,9 +79,10 @@ public class TestSwitching {
         assertReceivesPayload(new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32},
             receiver1);
         // done
-        receiver1.getInputStream().close();
-        receiver2.getInputStream().close();
-        receiver3.getInputStream().close();
+        for (var receiver: I(receiver1, receiver2, receiver3)) {
+            receiver.ensureStopped();
+            receiver.getInputStream().close();
+        }
         switchingIos.closeAll();
     }
     @org.junit.Test
@@ -95,8 +96,7 @@ public class TestSwitching {
         // test 1st receiver
         var receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());
         System.out.println("Connected to receiver 1");
-        receiver1.recv(payload -> {});
-        sender.send(new byte[1000]);
+        assertReceivesPayload(new byte[1000], receiver1);
         receiver1.recvStop();
         receiver1.getInputStream().close();
         // test fail-over to 2nd receiver
@@ -121,6 +121,10 @@ public class TestSwitching {
         System.out.println("Switched (fail-over) to receiver 1");
         assertReceivesPayload(payload3, receiver1);
         receiver1.getInputStream().close();
+        for (var receiver: I(receiver1, receiver2, receiver3)) {
+            receiver.ensureStopped();
+            receiver.getInputStream().close();
+        }
         // done
         switchingIos.closeAll();
     }

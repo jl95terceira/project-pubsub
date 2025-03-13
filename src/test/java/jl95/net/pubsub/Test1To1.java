@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.net.io.util.Util;
@@ -56,7 +57,7 @@ public class Test1To1 {
     }
     @org.junit.After
     public void tearDown() {
-        for (var member: I(member1OfBroker1, member2OfBroker1, member1OfBroker2, member1OfBroker3, member2OfBroker3, member3OfBroker1)) {
+        for (var member: I(member1OfBroker1, member2OfBroker1, member1OfBroker2, member1OfBroker3, member2OfBroker3, member3OfBroker1).filter(Objects::nonNull)) {
             member.close();
         }
         for (var broker: I(broker1, broker2, broker3)) {
