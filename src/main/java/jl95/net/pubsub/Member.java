@@ -42,6 +42,7 @@ import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
+import jl95.net.rpc.util.Defaults;
 
 public class Member implements MemberIf<JsonValue, JsonValue> {
 
@@ -86,23 +87,27 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     private final Method0               closer;
     private final Requesting            requesterIf;
     private final Responding            responderIf;
+    private final Method0               connectFunction;
+    private final RequesterIf.SendOptions.Editable sendOptions = new RequesterIf.SendOptions.Editable();
     private       Method1<Publication>  pubCallback = (pub) -> {/* pass */};
 
     private Member(CloseableIos requestsIos,
                    CloseableIos responsesIos) {
 
         this.closer   = unchecked(() -> {
-            requestsIos.close();
+            requestsIos .close();
             responsesIos.close();
         });
         this.requesterIf = new Requesting(requestsIos);
         this.responderIf = new Responding(responsesIos);
-        var requestsHelloRequester  = Requester.fromIo(requestsIos)
-            .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-        var responsesHelloRequester = Requester.fromIo(responsesIos)
-            .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-        postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
-        postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
+        connectFunction = () -> {
+            var requestsHelloRequester  = Requester.fromIo(requestsIos)
+                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+            var responsesHelloRequester = Requester.fromIo(responsesIos)
+                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+            postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
+            postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
+        };
     }
     private Member(Socket       requestsSocket,
                    Socket       responsesSocket) {
@@ -116,7 +121,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         msg.id       = UUID.randomUUID();
         msg.body     = object;
         msg.memberId = memberId;
-        return sender.apply(msg);
+        return sender.apply(msg, sendOptions);
     }
     synchronized private     void produce       (Publication pub) {
 
@@ -131,6 +136,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this(Util.getSocketByConnect(brokerAddr), Util.getSocketByConnect(brokerAddr));
     }
 
+    synchronized public final void            connect         () {
+        connectFunction.accept();
+    }
     @Override
     synchronized public final void            produce         (String topicName,
                                                                JsonValue data) {

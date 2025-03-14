@@ -75,7 +75,7 @@ public class TestSwitching {
     }
     @org.junit.AfterClass
     public static void tearDownStatic() {
-        sleep(5000);
+        sleep(1000);
     }
 
     @org.junit.Test
@@ -84,7 +84,7 @@ public class TestSwitching {
         var receiverSocket2Future = Util.getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = Util.getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
-        sleep(2000);
+        sleep(1000);
         sender = Sender.of(switchingIos);
         System.out.println("Receiver 1 create");
         receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());
@@ -120,7 +120,7 @@ public class TestSwitching {
         var receiverSocket2Future = Util.getSocketByAcceptFuture(addr2);
         var receiverSocket3Future = Util.getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
-        sleep(2000);
+        sleep(1000);
         sender = Sender.of(switchingIos);
         var payload1 = new byte[1000];
         receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());

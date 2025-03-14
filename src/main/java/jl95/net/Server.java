@@ -15,7 +15,6 @@ import jl95.lang.variadic.*;
 public class Server {
 
     private final ServerSocket               serverSocket;
-    private final ThreadPoolExecutor         pool = new ScheduledThreadPoolExecutor(4);
     private       Method2<Server, Socket>    acceptCb;
     private       Method2<Server, Exception> acceptErrorCb;
     private       Method1<Server>            acceptTimeoutCb;
@@ -45,7 +44,7 @@ public class Server {
         toStop      = false;
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
-        pool.execute(() -> {
+        new Thread(() -> {
             startFuture.complete(null);
             while (!toStop) {
                 try {
@@ -61,7 +60,7 @@ public class Server {
                         ifNull(acceptErrorCb, (self, ex_) -> { System.out.printf("Error on accept: %s\n", ex_); }).accept(this, ex);
                         continue;
                     }
-                    pool.execute(() -> ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket));
+                    ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket);
                 }
                 catch (Exception ex) /* happened in non-final (overridable) methods */ {
                     ex.printStackTrace();
@@ -69,7 +68,7 @@ public class Server {
             }
             stopFuture.complete(null);
             isRunning = false;
-        });
+        }).start();
         isRunning = true;
         return Awaitable.of(startFuture);
     }

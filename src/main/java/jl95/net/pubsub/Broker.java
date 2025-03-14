@@ -64,41 +64,41 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private void                        onAccept             (Socket socket) {
-        var memberIdFuture = new CompletableFuture<UUID>();
-        var helloTypeFuture  = new CompletableFuture<Hello.Type>();
-        var helloResponder   = Responder.fromIo(Ios.fromSocket(socket))
-                .adapted(MessageDeserializer.get(HelloJsonSerdes::fromJson), (UUID id) -> SerdesDefaults.stringToJson.apply(id.toString()));
-        var acceptedFuture = new CompletableFuture<Void>();
-        helloResponder.respondOnce(hello -> {
-            helloTypeFuture .complete(hello.body.type);
-            memberIdFuture.complete(hello.memberId);
-            uncheck(() -> acceptedFuture.get());
-            return getBrokerId();
-        }).await();
-        var helloType = uncheck(() -> helloTypeFuture .get());
-        var memberId  = uncheck(() -> memberIdFuture.get());
-        Method2<UUID, Socket> register;
-        switch (helloType) {
-            case MEMBER_REQUESTS  -> register = this::registerMemberRequestsLink;
-            case MEMBER_RESPONSES -> register = this::registerMemberResponsesLink;
-            case BROKER_REQUESTS  -> register = this::registerBrokerRequestsLink;
-            case BROKER_RESPONSES -> register = this::registerBrokerResponsesLink;
-            default -> throw new AssertionError();
-        }
-        register.accept(memberId, socket);
-        acceptedFuture.complete(null);
-        helloResponder.stop().await();
-        assert !helloResponder.isRunning();
+    private void                       onAccept             (Socket socket) {
+        new Thread(() -> {
+            var memberIdFuture   = new CompletableFuture<UUID>();
+            var helloTypeFuture  = new CompletableFuture<Hello.Type>();
+            var helloResponder   = Responder.fromIo(Ios.fromSocket(socket))
+                    .adapted(MessageDeserializer.get(HelloJsonSerdes::fromJson), (UUID id) -> SerdesDefaults.stringToJson.apply(id.toString()));
+            var acceptedFuture = new CompletableFuture<Void>();
+            helloResponder.respondOnce(hello -> {
+                helloTypeFuture.complete(hello.body.type);
+                memberIdFuture .complete(hello.memberId);
+                uncheck(() -> acceptedFuture.get());
+                return getBrokerId();
+            }).await();
+            var helloType = uncheck(() -> helloTypeFuture.get());
+            var memberId  = uncheck(() -> memberIdFuture .get());
+            Method2<UUID, Socket> register;
+            switch (helloType) {
+                case MEMBER_REQUESTS  -> register = this::registerMemberRequestsLink;
+                case MEMBER_RESPONSES -> register = this::registerMemberResponsesLink;
+                case BROKER_REQUESTS  -> register = this::registerBrokerRequestsLink;
+                case BROKER_RESPONSES -> register = this::registerBrokerResponsesLink;
+                default -> throw new AssertionError();
+            }
+            register.accept(memberId, socket);
+            acceptedFuture.complete(null);
+            helloResponder.stop().await();
+        }).start();
     }
-    private void                        closeMemberConnection(UUID memberId) {
+    private void                       closeMemberConnection(UUID memberId) {
         memberRequestsMap .get   (memberId).close();
         memberRequestsMap .remove(memberId);
         memberResponsesMap.get   (memberId).close();
         memberResponsesMap.remove(memberId);
     }
     private <T>
-
             RequestHandler<T>          decorated         (RequestHandler<T> handler, Function1<Method1<BrokerResponsesConnection.Callbacks>, Message<T>> brokerCbCallerSupplier) {
         return msg -> {
             msg.stamps.add(getBrokerId());
@@ -195,6 +195,7 @@ public class Broker {
         }
     }
     // listeners
+    synchronized
     private void                       notifyListenersUpdateSubscription(UpdateSubscription update) {
         for (var listener: listenersOnUpdateSubscriptionMap.values()) {
             listener.accept(update);

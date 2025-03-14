@@ -43,10 +43,15 @@ public class Test1To1 {
         broker2 = new Broker(Util.getSimpleServerSocket(brokerAddr2));
         broker3 = new Broker(Util.getSimpleServerSocket(brokerAddr3));
         for (var broker: I(broker1, broker2, broker3)) {
+            System.out.printf("Broker (%s) start ...", broker.getBrokerId());
             broker.startAccept().await();
+            System.out.println(" start OK");
         }
         broker1.linkBroker(brokerAddr2);
+        System.out.printf("Broker (%s) linked to broker (%s)", broker1.getBrokerId(), broker2.getBrokerId());
         broker2.linkBroker(brokerAddr3);
+        System.out.printf("Broker (%s) linked to broker (%s)", broker2.getBrokerId(), broker3.getBrokerId());
+        sleep(1000);
         member1OfBroker1 = new Member(brokerAddr1);
         member2OfBroker1 = new Member(brokerAddr1);
         member1OfBroker2 = new Member(brokerAddr2);
@@ -54,10 +59,23 @@ public class Test1To1 {
         member1OfBroker3 = new Member(brokerAddr3);
         member2OfBroker3 = new Member(brokerAddr3);
         member3OfBroker1 = new Member(brokerAddr1);
+        for (var member: I(member1OfBroker1,
+                           member2OfBroker1,
+                           member3OfBroker1,member1OfBroker2,
+                                            member2OfBroker2,member1OfBroker3,
+                                                             member2OfBroker3)) {
+            System.out.printf("Member (%s) connecting ...", member.getMemberId());
+            member.connect();
+            System.out.println(" connection OK");
+        }
     }
     @org.junit.After
     public void tearDown() {
-        for (var member: I(member1OfBroker1, member2OfBroker1, member1OfBroker2, member1OfBroker3, member2OfBroker3, member3OfBroker1).filter(Objects::nonNull)) {
+        for (var member: I(member1OfBroker1,
+                           member2OfBroker1,
+                           member3OfBroker1,member1OfBroker2,
+                                            member2OfBroker2, member1OfBroker3,
+                                                              member2OfBroker3).filter(Objects::nonNull)) {
             member.close();
         }
         for (var broker: I(broker1, broker2, broker3)) {
