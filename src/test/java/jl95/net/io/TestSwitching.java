@@ -145,6 +145,6 @@ public class TestSwitching {
         var payload5 = new byte[]{(byte)255,0,(byte)255,16,64,80,16,112,(byte)255,(byte)255,(byte)32};
         receiver3 = Receiver.of(Util.getSocketByAcceptFuture(addr3).await().getInputStream()); // re-launch 1st receiver
         System.out.println("Switched (fail-over) back to receiver 3");
-        assertReceivesPayloadAndClose(payload3, receiver3);
+        assertReceivesPayloadAndClose(payload5, receiver3);
     }
 }
