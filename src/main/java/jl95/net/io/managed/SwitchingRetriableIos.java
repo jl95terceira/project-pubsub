@@ -24,7 +24,8 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
 
     private final StrictSet<InetSocketAddress>      peersAddrSet     = strict(Set());
     private final List<InetSocketAddress>           peersAddrList    = new ArrayList<>(1);
-    private final StrictMap<InetSocketAddress, CloseableIos> peersIoMapByAddr = strict(new ConcurrentHashMap<>());
+    private final StrictMap<InetSocketAddress, CloseableIos> peersIoMapByAddr           = strict(new ConcurrentHashMap<>());
+    private final StrictMap<InetSocketAddress, Object>       peersIoReloadSyncMapByAddr = strict(new ConcurrentHashMap<>());
     private final Iterator<InetSocketAddress> peerAddressSwitcher;
     private final ScheduledExecutorService    pool;
     private       InetSocketAddress           peerCurAddress;
@@ -71,13 +72,19 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
             catch (Exception ex) {/*who cares*/}
             peersIoMapByAddr.remove(addr);
         }
+        var sync = peersIoReloadSyncMapByAddr.get(addr);
         pool.execute(() -> {
-            while (!toStopRetries) {
-                try {
-                    peersIoMapByAddr.put(addr, loadIos(addr));
-                }
-                catch (Exception ex) {
-                    sleep(ifNull(retryReconnectTimeoutMs, 2000));
+            synchronized (sync) {
+                while (!toStopRetries) {
+                    CloseableIos ios;
+                    try {
+                        ios = loadIos(addr);
+                    } catch (Exception ex) {
+                        sleep(ifNull(retryReconnectTimeoutMs, 2000));
+                        continue;
+                    }
+                    peersIoMapByAddr.put(addr, ios);
+                    break;
                 }
             }
         });
@@ -89,6 +96,9 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
 
         I.of(peerAddresses).to(peersAddrSet);
         I.of(peerAddresses).to(peersAddrList);
+        for (var addr: peersAddrList) {
+            peersIoReloadSyncMapByAddr.put(addr, new Object());
+        }
         pool = new ScheduledThreadPoolExecutor(peersAddrList.size());
         if (peersAddrList.isEmpty()) {
             throw new NoAddressesException();
@@ -115,6 +125,11 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
     public final void setRetryPredicate(Function1<Boolean, Integer> f) { this.retryPredicate = f; }
     public final void setRetryLimit    (Integer max) { setRetryPredicate(n -> n <= max); }
     public final void closeAll         () {
+        toStopRetries = true;
+        for (var addr: peersAddrList) {
+            var sync = peersIoReloadSyncMapByAddr.get(addr);
+            synchronized (sync) {/* wait stop */}
+        }
         for (var ios: peersIoMapByAddr.values()) {
             ios.close();
         }
