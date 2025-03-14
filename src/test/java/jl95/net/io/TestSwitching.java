@@ -73,6 +73,10 @@ public class TestSwitching {
             switchingIos.closeAll();
         }
     }
+    @org.junit.AfterClass
+    public static void tearDownStatic() {
+        sleep(5000);
+    }
 
     @org.junit.Test
     public void testRoundRobin() throws Exception {
@@ -104,6 +108,11 @@ public class TestSwitching {
         switchingIos.switchh();
         assertReceivesPayload(new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32},
             receiver1);
+        // test switch back to 3rd receiver
+        switchingIos.switchh(); // 1 -> 2
+        switchingIos.switchh(); // 2 -> 3
+        assertReceivesPayload(new byte[200],
+            receiver3);
     }
     @org.junit.Test
     public void testFailOver() throws Exception {
@@ -132,5 +141,10 @@ public class TestSwitching {
         receiver1 = Receiver.of(Util.getSocketByAcceptFuture(addr1).await().getInputStream()); // re-launch 1st receiver
         System.out.println("Switched (fail-over) back to receiver 1");
         assertReceivesPayloadAndClose(payload4, receiver1);
+        // test fail-over to 1st receiver (re-opened)
+        var payload5 = new byte[]{(byte)255,0,(byte)255,16,64,80,16,112,(byte)255,(byte)255,(byte)32};
+        receiver3 = Receiver.of(Util.getSocketByAcceptFuture(addr3).await().getInputStream()); // re-launch 1st receiver
+        System.out.println("Switched (fail-over) back to receiver 3");
+        assertReceivesPayloadAndClose(payload3, receiver3);
     }
 }
