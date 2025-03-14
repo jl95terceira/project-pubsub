@@ -15,6 +15,7 @@ import jl95.lang.variadic.*;
 public class Server {
 
     private final ServerSocket               serverSocket;
+    private       Method1<Method0>           acceptRunner = Method0::accept;
     private       Method2<Server, Socket>    acceptCb;
     private       Method2<Server, Exception> acceptErrorCb;
     private       Method1<Server>            acceptTimeoutCb;
@@ -28,6 +29,19 @@ public class Server {
         this.serverSocket    = socket;
     }
 
+    // acceptance mode (sync / async)
+    public final void acceptSynced        () {
+        acceptRunner = Method0::accept;
+    }
+    public final void acceptAsyncNewThread() {
+        acceptRunner = f -> new Thread(f::accept).start();
+    }
+    public final void acceptAsyncPool     (Integer threadsNr) {
+
+        var pool = new ScheduledThreadPoolExecutor(threadsNr);
+        acceptRunner = f -> pool.execute(f::accept);
+    }
+    // callbacks
     public final void setAcceptCb       (Method2<Server, Socket>    cb) {
         acceptCb        = cb;
     }
@@ -60,7 +74,7 @@ public class Server {
                         ifNull(acceptErrorCb, (self, ex_) -> { System.out.printf("Error on accept: %s\n", ex_); }).accept(this, ex);
                         continue;
                     }
-                    ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket);
+                    acceptRunner.accept(() -> ifNull(acceptCb, (self, socket_) -> {}).accept(this, socket));
                 }
                 catch (Exception ex) /* happened in non-final (overridable) methods */ {
                     ex.printStackTrace();
