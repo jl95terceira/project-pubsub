@@ -6,6 +6,7 @@ import static jl95.lang.SuperPowers.tuple;
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Tuple2;
+import jl95.net.io.Receiver;
 import jl95.net.io.ReceiverIf;
 
 public interface ResponderIf<A, R> {
@@ -38,6 +39,14 @@ public interface ResponderIf<A, R> {
     }
     default Awaitable<Void> respondOnce (Function1<R, A> responseFunction) {
         return respondOnce(responseFunction, RespondOptions.defaults());
+    }
+    default void            ensureStopped() {
+        try {
+            stop().await();
+        }
+        catch (Responder.StopWhenNotRunningException ex) {
+            return;
+        }
     }
     default <A2, R2> ResponderIf<A2, R2> adapted        (Function1<A2, A> requestAdapter,
                                                          Function1<R, R2> responseAdapter) {
