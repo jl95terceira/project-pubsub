@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.json.JsonValue;
 
+import jl95.lang.Awaitable;
 import jl95.net.io.Ios;
 import jl95.net.io.ReceiverIf;
 import jl95.net.io.SenderIf;
@@ -55,41 +56,53 @@ public class Requester implements RequesterIf<JsonValue, JsonValue> {
         var request     = new Request();
         request.id      = UUID.randomUUID();
         request.payload = payload;
-        sender.send(request);
-        var responseSync   = new Object();
         var responseFuture = new CompletableFuture<ResponseStatusAndData>();
-        receiver.recvWhile(response -> {
-            synchronized (responseSync) {
-                try {
-                    if (responseFuture.isDone()) /* oof, just timed out */ {
+        while (true) {
+            sender.send(request);
+            var responseSync = new Object();
+            var ioErrorFuture  = new CompletableFuture<Boolean>();
+            receiver.recvWhile(response -> {
+                synchronized (responseSync) {
+                    try {
+                        if (responseFuture.isDone()) /* oof, just timed out */ {
+                            ioErrorFuture.complete(false);
+                            return false;
+                        }
+                        var rsd = new ResponseStatusAndData();
+                        if (!response.requestId.equals(request.id)) {
+                            options.onOutOfSync();
+                            return true; // discard response (old, out of sync), wait for next
+                        }
+                        else {
+                            rsd.response = response;
+                        }
+                        responseFuture.complete(rsd);
+                        ioErrorFuture.complete(false);
                         return false;
                     }
+                    catch (Exception ex) {
+                        ioErrorFuture.complete(true);
+                        return false;
+                    }
+                }
+            });
+            scheduler.schedule(() -> {
+                synchronized (responseSync) {
+                    if (responseFuture.isDone()) return;
+                    // not completed - set failed (by time-out)
+                    receiver.recvStop().await();
                     var rsd = new ResponseStatusAndData();
-                    if (!response.requestId.equals(request.id)) {
-                        options.onOutOfSync();
-                        return true; // discard response (old, out of sync), wait for next
-                    }
-                    else {
-                        rsd.response = response;
-                    }
+                    rsd.status = ResponseExceptionalStatus.FAIL_TIMEOUT;
                     responseFuture.complete(rsd);
-                    return false;
+                    ioErrorFuture.complete(false);
                 }
-                catch (Exception ex) {
-                    return false;
-                }
+            }, options.getResponseTimeoutMs(), TimeUnit.MILLISECONDS);
+            var ioErrorOccurred = uncheck(() -> ioErrorFuture.get());
+            if (!ioErrorOccurred) {
+                break;
             }
-        });
-        scheduler.schedule(() -> {
-            synchronized (responseSync) {
-                if (responseFuture.isDone()) return;
-                // not completed - set failed (by time-out)
-                receiver.recvStop().await();
-                var rsd = new ResponseStatusAndData();
-                rsd.status = ResponseExceptionalStatus.FAIL_TIMEOUT;
-                responseFuture.complete(rsd);
-            }
-        }, options.getResponseTimeoutMs(), TimeUnit.MILLISECONDS);
+            // if error occurred, retry send request and receive response
+        }
         var rsd = uncheck(() -> responseFuture.get());
         if (rsd.status == ResponseExceptionalStatus.FAIL_TIMEOUT) {
             throw new ResponseTimeoutException();

@@ -62,7 +62,12 @@ public class Responder implements ResponderIf<JsonValue, JsonValue> {
             response.id        = UUID.randomUUID();
             response.requestId = request.id;
             response.payload   = responseObject.a1;
-            sender.send(response);
+            try {
+                sender.send(response);
+            }
+            catch (Exception ex) {
+                return true; // continue receiving
+            }
             return responseObject.a2;
         }, options);
     }
