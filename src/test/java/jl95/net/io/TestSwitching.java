@@ -42,7 +42,9 @@ public class TestSwitching {
         receiver.ensureStopped();
         receiver.recv(payloadBackPromise::complete).await();
         sender.send(payload);
+        System.out.println("Waiting for payload back");
         var payloadBack = payloadBackPromise.get(2000L, TimeUnit.MILLISECONDS);
+        System.out.println("Got payload back - OK");
         try {
             org.junit.Assert.assertArrayEquals(payload, payloadBack);
         }
@@ -83,6 +85,7 @@ public class TestSwitching {
         var receiverSocket3Future = Util.getSocketByAcceptFuture(addr3);
         switchingIos = SwitchingRetriableClientIos.of(addr1, addr2, addr3);
         sleep(1000);
+        System.out.println("Sender create");
         sender = Sender.of(switchingIos);
         System.out.println("Receiver 1 create");
         receiver1 = Receiver.of(receiverSocket1Future.await().getInputStream());

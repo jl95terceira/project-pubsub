@@ -29,7 +29,6 @@ public class TestSwitchingIo {
 
     @org.junit.Before
     public void setUp() throws Exception {
-        System.out.println("setup");
         var responder1Future = CompletableFuture.supplyAsync(() -> {
             ioAsServer1 = Util.getIoAsServer(addr1);
             return ResponderAdaptersCollection.asStringPostGetResponder(Responder.fromIo(ioAsServer1));
@@ -46,11 +45,9 @@ public class TestSwitchingIo {
         requester = requesterFuture.get();
         responder1 = responder1Future.get();
         responder2 = responder2Future.get();
-        System.out.println("setup done");
     }
     @org.junit.After
     public void tearDown() {
-        System.out.println("teardown");
         for (var responder: I(responder1, responder2)) {
             if (responder.isRunning()) {
                 responder.ensureStopped();
@@ -62,7 +59,6 @@ public class TestSwitchingIo {
                 io.close();
             }
         }
-        System.out.println("teardown done");
     }
 
     @org.junit.Test
