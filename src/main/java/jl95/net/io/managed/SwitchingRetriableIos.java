@@ -31,7 +31,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
     private       InetSocketAddress           peerCurAddress;
     private       Method1<CloseableIos>       onConnection = ios -> {};
     private       Integer                     retryTimeoutMs;
-    private       Integer                     retryReconnectTimeoutMs;
+    private       Integer                     reconnectTimeoutMs;
     private       Function1<Boolean, Integer> retryPredicate;
     private       Boolean                     toStopRetries = false;
 
@@ -89,7 +89,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                         }
                         peersIoMapByAddr.put(addr, ios);
                     } catch (Exception ex) {
-                        sleep(ifNull(retryReconnectTimeoutMs, 2000));
+                        sleep(ifNull(reconnectTimeoutMs, 2000));
                         continue;
                     }
                     break;
@@ -134,6 +134,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
     public final void setOnConnection  (Method1<CloseableIos> m) {
         onConnection = m;
     }
+    public final void setReconnectTimeoutMs(Integer t) { this.reconnectTimeoutMs = t; }
     public final void setRetryTimeoutMs(Integer t) { this.retryTimeoutMs = t; }
     public final void setRetryPredicate(Function1<Boolean, Integer> f) { this.retryPredicate = f; }
     public final void setRetryLimit    (Integer max) { setRetryPredicate(n -> n <= max); }
