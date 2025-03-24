@@ -3,9 +3,7 @@ package jl95.net.io;
 import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import jl95.lang.*;
@@ -97,20 +95,20 @@ public class TestSwitching {
         assertReceivesPayload(new byte[]{0,16,0,48,0,80,0,112,0,(byte)144,0},
             receiver1);
         // test switch to 2nd receiver
-        switchingIos.switchh();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{0,16,32,48,64,80,96,112,(byte)128,(byte)144,(byte)160},
             receiver2);
         // test switch to 3rd receiver
-        switchingIos.switchh();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{(byte)255,16,112,96,64,80,96,112,(byte)128,(byte)144,(byte)160},
             receiver3);
         // test switch back to 1st receiver
-        switchingIos.switchh();
+        switchingIos.switchIo();
         assertReceivesPayload(new byte[]{(byte)255,0,(byte)255,96,64,80,96,112,(byte)255,(byte)255,(byte)32},
             receiver1);
         // test switch back to 3rd receiver
-        switchingIos.switchh(); // 1 -> 2
-        switchingIos.switchh(); // 2 -> 3
+        switchingIos.switchIo(); // 1 -> 2
+        switchingIos.switchIo(); // 2 -> 3
         assertReceivesPayload(new byte[200],
             receiver3);
     }

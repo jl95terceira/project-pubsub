@@ -55,7 +55,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                 }
             }
             catch (Exception ex) {
-                switchh();
+                switchIo();
                 if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
                     throw new NoMoreRetriesException();
                 }
@@ -128,7 +128,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
         }));
     }
 
-    public final void switchh          () {
+    public final void switchIo         () {
         peerCurAddress = peerAddressSwitcher.next();
     }
     public final void setOnConnection  (Method1<CloseableIos> m) {
