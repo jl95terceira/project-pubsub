@@ -29,10 +29,11 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
     private final Iterator<InetSocketAddress> peerAddressSwitcher;
     private final ScheduledExecutorService    pool;
     private       InetSocketAddress           peerCurAddress;
+    private       Method1<CloseableIos>       onConnection = ios -> {};
     private       Integer                     retryTimeoutMs;
     private       Integer                     retryReconnectTimeoutMs;
     private       Function1<Boolean, Integer> retryPredicate;
-    private       Boolean toStopRetries = false;
+    private       Boolean                     toStopRetries = false;
 
     private <T> T switching(Function1<T, Ios> f) {
         var retriesSoFar = 0;
@@ -49,7 +50,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                     return f.apply(ios);
                 }
                 catch (Exception ex) {
-                    reload(peerCurAddress);
+                    reconnect(peerCurAddress);
                     throw ex;
                 }
             }
@@ -64,12 +65,12 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
         }
     }
 
-    synchronized private void reload(InetSocketAddress addr) {
+    synchronized private void reconnect(InetSocketAddress addr) {
         if (peersIoMapByAddr.containsKey(addr)) {
             try {
                 peersIoMapByAddr.get(addr).close();
             }
-            catch (Exception ex) {/*who cares*/}
+            catch (Exception ex) {/* who cares */}
             peersIoMapByAddr.remove(addr);
         }
         var sync = peersIoReloadSyncMapByAddr.get(addr);
@@ -78,19 +79,26 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                 while (!toStopRetries) {
                     CloseableIos ios;
                     try {
-                        ios = loadIos(addr);
+                        ios = getIos(addr);
+                        try {
+                            onConnection.accept(ios);
+                        }
+                        catch (Exception ex) {
+                            try { ios.close(); }
+                            catch (Exception ex_) {/* the show must go on */}
+                        }
+                        peersIoMapByAddr.put(addr, ios);
                     } catch (Exception ex) {
                         sleep(ifNull(retryReconnectTimeoutMs, 2000));
                         continue;
                     }
-                    peersIoMapByAddr.put(addr, ios);
                     break;
                 }
             }
         });
     }
 
-    protected abstract CloseableIos loadIos(InetSocketAddress addr);
+    protected abstract CloseableIos getIos(InetSocketAddress addr);
 
     protected SwitchingRetriableIos(Iterable<InetSocketAddress> peerAddresses) {
 
@@ -105,10 +113,12 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
         }
         for (var addr: peersAddrList) {
             try {
-                peersIoMapByAddr.put(addr, loadIos(addr));
+                var ios = getIos(addr);
+                onConnection.accept(ios);
+                peersIoMapByAddr.put(addr, ios);
             }
             catch (Exception ex) {
-                reload(addr);
+                reconnect(addr);
             }
         }
         peerAddressSwitcher = I.of(peersAddrList).cycle().iterator();
@@ -120,6 +130,9 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
 
     public final void switchh          () {
         peerCurAddress = peerAddressSwitcher.next();
+    }
+    public final void setOnConnection  (Method1<CloseableIos> m) {
+        onConnection = m;
     }
     public final void setRetryTimeoutMs(Integer t) { this.retryTimeoutMs = t; }
     public final void setRetryPredicate(Function1<Boolean, Integer> f) { this.retryPredicate = f; }

@@ -18,6 +18,7 @@ import jl95.net.io.Ios;
 import jl95.net.io.ReceiverIf;
 import jl95.net.io.SenderIf;
 import jl95.net.io.SenderReceiverIf;
+import jl95.net.io.managed.ManagedIos;
 import jl95.net.rpc.util.Request;
 import jl95.net.rpc.util.Response;
 import jl95.net.rpc.util.SerdesDefaults;
@@ -42,6 +43,10 @@ public class Requester implements RequesterIf<JsonValue, JsonValue> {
 
         return fromSr(SenderReceiverIf.fromIo(ios));
     }
+    public static Requester fromManagedIo(ManagedIos ios) {
+
+        return fromSr(SenderReceiverIf.fromManagedIo(ios));
+    }
 
     private final SenderIf  <Request>      sender;
     private final ReceiverIf<Response>     receiver;
@@ -63,11 +68,11 @@ public class Requester implements RequesterIf<JsonValue, JsonValue> {
             var ioErrorFuture  = new CompletableFuture<Boolean>();
             receiver.recvWhile(response -> {
                 synchronized (responseSync) {
+                    if (responseFuture.isDone()) /* oof, just timed out */ {
+                        ioErrorFuture.complete(false);
+                        return false;
+                    }
                     try {
-                        if (responseFuture.isDone()) /* oof, just timed out */ {
-                            ioErrorFuture.complete(false);
-                            return false;
-                        }
                         var rsd = new ResponseStatusAndData();
                         if (!response.requestId.equals(request.id)) {
                             options.onOutOfSync();

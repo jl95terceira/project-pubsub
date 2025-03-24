@@ -5,6 +5,7 @@ import static jl95.lang.SuperPowers.constant;
 import java.net.Socket;
 
 import jl95.lang.variadic.Function0;
+import jl95.net.io.managed.ManagedIos;
 
 public interface SenderReceiverIf<S, R> {
 
@@ -37,5 +38,8 @@ public interface SenderReceiverIf<S, R> {
     }
     static SenderReceiverIf<byte[], byte[]> fromSocketLazy(Socket socket) {
         return fromIo(Ios.fromSocketLazy(socket));
+    }
+    static SenderReceiverIf<byte[], byte[]> fromManagedIo (ManagedIos ios) {
+        return ofConstant(Sender.of(ios), Receiver.of(ios));
     }
 }
