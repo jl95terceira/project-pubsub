@@ -16,7 +16,7 @@ public class SwitchingRetriableClientIos extends SwitchingRetriableIos {
         return new SwitchingRetriableClientIos(I(peerAddresses));
     }
 
-    @Override protected CloseableIos getIos(InetSocketAddress addr) {
+    @Override protected CloseableIos connect(InetSocketAddress addr) {
         return Util.getIoAsClient(addr);
     }
 

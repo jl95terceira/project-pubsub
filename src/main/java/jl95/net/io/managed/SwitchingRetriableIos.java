@@ -83,7 +83,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                 while (!toStopRetries) {
                     CloseableIos ios;
                     try {
-                        ios = getIos(addr);
+                        ios = connect(addr);
                         try {
                             onConnection.accept(ios);
                         }
@@ -102,7 +102,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
         });
     }
 
-    protected abstract CloseableIos getIos(InetSocketAddress addr);
+    protected abstract CloseableIos connect(InetSocketAddress addr);
 
     protected SwitchingRetriableIos(Iterable<InetSocketAddress> peerAddresses) {
 
@@ -117,7 +117,7 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
         }
         for (var addr: peersAddrList) {
             try {
-                var ios = getIos(addr);
+                var ios = connect(addr);
                 onConnection.accept(ios);
                 peersIoMapByAddr.put(addr, ios);
             }
