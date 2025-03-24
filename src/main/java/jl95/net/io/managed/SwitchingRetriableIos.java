@@ -44,7 +44,8 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                     ios = peersIoMapByAddr.get(peerCurAddress);
                 }
                 else {
-                    throw new Exception();
+                    retriesSoFar = switchIoRetried(retriesSoFar);
+                    continue;
                 }
                 try {
                     return f.apply(ios);
@@ -55,14 +56,17 @@ public abstract class SwitchingRetriableIos implements ManagedIos {
                 }
             }
             catch (Exception ex) {
-                switchIo();
-                if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
-                    throw new NoMoreRetriesException();
-                }
-                sleep(ifNull(retryTimeoutMs, 250));
-                retriesSoFar += 1;
+                retriesSoFar = switchIoRetried(retriesSoFar);
             }
         }
+    }
+    private Integer switchIoRetried(Integer retriesSoFar) {
+        switchIo();
+        if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
+            throw new NoMoreRetriesException();
+        }
+        sleep(ifNull(retryTimeoutMs, 250));
+        return retriesSoFar + 1;
     }
 
     synchronized private void reconnect(InetSocketAddress addr) {
