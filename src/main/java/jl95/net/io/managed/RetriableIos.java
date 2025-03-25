@@ -28,11 +28,11 @@ public abstract class RetriableIos implements ManagedIos {
     private final StrictMap<InetSocketAddress, CloseableIos> iosMapByAddr     = strict(new ConcurrentHashMap<>());
     private final StrictMap<InetSocketAddress, Object> iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
     private final StrictSet<InetSocketAddress> addrsReconnecting = strict(new HashSet<>());
-    private       Integer                      retryTimeoutMs;
+    private       Function0<Integer>           retryTimeoutMs;
     private       Function1<Boolean, Integer>  retryPredicate;
     private       Boolean                      toStopRetries = false;
     private       Integer                      retriesSoFar  = 0;
-    private       Function0<Integer> reconnectTimeoutMs;
+    private       Function0<Integer>           reconnectTimeoutMs;
     private       Method1<CloseableIos>        onConnection      = ios -> {};
 
     private <T> T   retried    (Function1<T, Ios> f) {
@@ -59,7 +59,7 @@ public abstract class RetriableIos implements ManagedIos {
                 if (!ifNull(retryPredicate, n -> true).apply(retriesSoFar)) {
                     throw new NoMoreRetriesException();
                 }
-                sleep(ifNull(retryTimeoutMs, 250));
+                sleep(ifNull(retryTimeoutMs, Defaults.retryTimeoutMs).apply());
                 retriesSoFar += 1;
             }
             if (gotIosError) continue;
@@ -152,7 +152,8 @@ public abstract class RetriableIos implements ManagedIos {
     public final void           setOnConnection   (Method1<CloseableIos> m) {
         onConnection = m;
     }
-    public final void           setRetryTimeoutMs (Integer t) { this.retryTimeoutMs = t; }
+    public final void           setRetryTimeoutMs (Function0<Integer> t) { this.retryTimeoutMs = t; }
+    public final void           setRetryTimeoutMs (Integer            t) { setRetryTimeoutMs(constant(t)); }
     public final void           setRetryPredicate (Function1<Boolean, Integer> f) { this.retryPredicate = f; }
     public final void           setRetryLimit     (Integer max) { setRetryPredicate(n -> n <= max); }
     public final Integer        getRetriesSoFar   () {return retriesSoFar;}
