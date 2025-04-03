@@ -59,9 +59,9 @@ public class Test1To1 {
             System.out.println(" start OK");
         }
         broker1.linkBroker(brokerAddr2);
-        System.out.printf("Broker (%s) linked to broker (%s)", broker1.getBrokerId(), broker2.getBrokerId());
+        System.out.printf("Broker (%s) linked to broker (%s)\n", broker1.getBrokerId(), broker2.getBrokerId());
         broker2.linkBroker(brokerAddr3);
-        System.out.printf("Broker (%s) linked to broker (%s)", broker2.getBrokerId(), broker3.getBrokerId());
+        System.out.printf("Broker (%s) linked to broker (%s)\n", broker2.getBrokerId(), broker3.getBrokerId());
     }
     private void   restartBrokers() {
         for (var broker: brokersList) {
