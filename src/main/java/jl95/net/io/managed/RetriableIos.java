@@ -19,11 +19,12 @@ import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Function2;
 import jl95.lang.variadic.Method0;
 import jl95.lang.variadic.Method1;
+import jl95.net.io.Closeable;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
 import jl95.net.io.managed.util.Defaults;
 
-public abstract class RetriableIos implements ManagedIos {
+public abstract class RetriableIos implements ManagedIos, Closeable {
 
     private final StrictMap<InetSocketAddress, CloseableIos> iosMapByAddr     = strict(new ConcurrentHashMap<>());
     private final StrictMap<InetSocketAddress, Object> iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
@@ -101,6 +102,20 @@ public abstract class RetriableIos implements ManagedIos {
     }
     public final Iterable<CloseableIos>
                                 getAll            () {return iosMapByAddr.values();}
+    @Override
+    synchronized
+    public final void           close             () {
+        stopRetries();
+        for (var addr: iosMapByAddr.keySet()) {
+            var sync = getReconnectSync(addr);
+            if (sync != null) {
+                synchronized (getReconnectSync(addr)) {/* wait stop */}
+            }
+        }
+        for (var ios: getAll()) {
+            ios.close();
+        }
+    }
     synchronized
     public final void           forget            (InetSocketAddress addr) {
         iosReconnectSyncMap.remove(addr);

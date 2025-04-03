@@ -41,6 +41,7 @@ public class TestSwitching {
         var payloadBackPromise = new CompletableFuture<byte[]>();
         receiver.ensureStopped();
         receiver.recv(payloadBackPromise::complete).await();
+        System.out.println("Sending");
         sender.send(payload);
         System.out.println("Waiting for payload back");
         var payloadBack = payloadBackPromise.get(2000L, TimeUnit.MILLISECONDS);
@@ -70,7 +71,7 @@ public class TestSwitching {
             }
         }
         if (switchingIos != null) {
-            switchingIos.closeAll();
+            switchingIos.close();
         }
     }
     @org.junit.AfterClass

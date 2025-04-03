@@ -53,7 +53,7 @@ public class TestSwitchingIo {
                 responder.ensureStopped();
             }
         }
-        if (ioAsClient  != null) ioAsClient.closeAll();
+        if (ioAsClient  != null) ioAsClient.close();
         for (var io: I(ioAsServer1, ioAsServer2)) {
             if (io != null) {
                 io.close();

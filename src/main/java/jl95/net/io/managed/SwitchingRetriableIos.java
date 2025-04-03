@@ -73,17 +73,6 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         reswitchIo(0);
     }
     @Override protected final void              retryExecute   (Method0 f) { pool.execute(f::accept); }
-    @Override protected final void              onToStopRetries() {
-        for (var addr: addrsList) {
-            var sync = getReconnectSync(addr);
-            if (sync != null) {
-                synchronized (getReconnectSync(addr)) {/* wait stop */}
-            }
-        }
-        for (var ios: getAll()) {
-            ios.close();
-        }
-    }
 
     public final void switchIo             () {
         peerCurAddress = peerAddressSwitcher.next();
@@ -92,7 +81,4 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         reswitchPredicate = f;}
     public final void setReswitchLimit     (Integer max) {setReswitchPredicate(i -> i <= max);}
     public final void setReswitchTimeoutMs (Function0<Integer>          f) {reswitchTimeoutMs = f;}
-    public final void closeAll             () {
-        stopRetries();
-    }
 }
