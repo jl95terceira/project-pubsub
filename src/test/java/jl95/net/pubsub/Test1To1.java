@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import jl95.lang.I;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
+import parameters.Parameters;
 
 public class Test1To1 {
 
@@ -38,7 +39,7 @@ public class Test1To1 {
     public Member member3OfBroker1;
 
     private void   zzz() {
-        sleep(125);
+        sleep(Parameters.zzzDuration);
     }
     private Broker managed(Broker broker) {
         brokersList.add(broker);
@@ -105,54 +106,70 @@ public class Test1To1 {
     }
 
     public void testPubSub         (Member producerMember, Member consumerMember) {
-        var msgFuture = new CompletableFuture<String>();
-        System.out.println("consume");
-        MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
-            msgFuture.complete(payload);
+        var m = method(() -> {
+            var msgFuture = new CompletableFuture<String>();
+            System.out.println("consume");
+            MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
+                msgFuture.complete(payload);
+            });
+            zzz();
+            System.out.println("subscribe");
+            consumerMember.subscribeByList(I("foo"));
+            zzz();
+            System.out.println("produce");
+            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
+            zzz();
+            org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
+            consumerMember.consumeStop().await();
         });
-        zzz();
-        System.out.println("subscribe");
-        consumerMember.subscribeByList(I("foo"));
-        zzz();
-        System.out.println("produce");
-        MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        zzz();
-        org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
+        m.accept();
+        m.accept();
     }
     public void testPubNoSub       (Member producerMember, Member consumerMember) {
-        var msgFuture = new CompletableFuture<String>();
-        System.out.println("consume");
-        MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
-            msgFuture.complete(payload);
+        var m = method(() -> {
+            var msgFuture = new CompletableFuture<String>();
+            System.out.println("consume");
+            MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
+                msgFuture.complete(payload);
+            });
+            zzz();
+            System.out.println("produce");
+            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
+            zzz();
+            System.out.println("assert consumed");
+            org.junit.Assert.assertFalse(msgFuture.isDone());
+            consumerMember.consumeStop().await();
         });
-        zzz();
-        System.out.println("produce");
-        MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        zzz();
-        System.out.println("assert consumed");
-        org.junit.Assert.assertFalse(msgFuture.isDone());
+        m.accept();
+        m.accept();
     }
     public void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
-        var msgFuture = new CompletableFuture<String>();
-        System.out.println("consume");
-        MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
-            msgFuture.complete(payload);
+        var m = method(() -> {
+            var msgFuture = new CompletableFuture<String>();
+            System.out.println("consume");
+            MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
+                msgFuture.complete(payload);
+            });
+            zzz();
+            System.out.println("produce");
+            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
+            zzz();
+            System.out.println("assert NOT consumed (since not subscribed)");
+            org.junit.Assert.assertFalse(msgFuture.isDone());
+            System.out.println("subscribe");
+            consumerMember.subscribeByList(I("foo"));
+            zzz();
+            System.out.println("produce");
+            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
+            zzz();
+            System.out.println("assert consumed");
+            org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
+            consumerMember.consumeStop().await();
+            consumerMember.subscribeToNone();
+            System.out.println("done");
         });
-        zzz();
-        System.out.println("produce");
-        MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        zzz();
-        System.out.println("assert NOT consumed (since not subscribed)");
-        org.junit.Assert.assertFalse(msgFuture.isDone());
-        System.out.println("subscribe");
-        consumerMember.subscribeByList(I("foo"));
-        zzz();
-        System.out.println("produce");
-        MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-        zzz();
-        System.out.println("assert consumed");
-        org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
-        System.out.println("done");
+        m.accept();
+        m.accept();
     }
 
     @org.junit.Test
