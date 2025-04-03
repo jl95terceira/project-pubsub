@@ -4,9 +4,12 @@ import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+import jl95.lang.I;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
 
@@ -21,9 +24,11 @@ public class Test1To1 {
     public final InetSocketAddress brokerAddr1 = new InetSocketAddress("127.0.0.1", 42421);
     public final InetSocketAddress brokerAddr2 = new InetSocketAddress("127.0.0.1", 42422);
     public final InetSocketAddress brokerAddr3 = new InetSocketAddress("127.0.0.1", 42423);
+    public List<Broker> brokersList;
     public Broker broker1;
     public Broker broker2;
     public Broker broker3;
+    public List<Member> membersList;
     public Member member1OfBroker1;
     public Member member2OfBroker1;
     public Member member1OfBroker2;
@@ -32,17 +37,23 @@ public class Test1To1 {
     public Member member2OfBroker3;
     public Member member3OfBroker1;
 
-    private void zzz() {
+    private void   zzz() {
         sleep(125);
     }
-
-    @org.junit.Before
-    public void setUp() {
-        t0 = Instant.now();
-        broker1 = new Broker(Util.getSimpleServerSocket(brokerAddr1));
-        broker2 = new Broker(Util.getSimpleServerSocket(brokerAddr2));
-        broker3 = new Broker(Util.getSimpleServerSocket(brokerAddr3));
-        for (var broker: I(broker1, broker2, broker3)) {
+    private Broker managed(Broker broker) {
+        brokersList.add(broker);
+        return broker;
+    }
+    private Member managed(Member member) {
+        membersList.add(member);
+        return member;
+    }
+    private void   initBrokers   () {
+        brokersList = new ArrayList<>(3);
+        broker1 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr1)));
+        broker2 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr2)));
+        broker3 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr3)));
+        for (var broker: brokersList) {
             System.out.printf("Broker (%s) start ...", broker.getBrokerId());
             broker.startAccept().await();
             System.out.println(" start OK");
@@ -51,34 +62,43 @@ public class Test1To1 {
         System.out.printf("Broker (%s) linked to broker (%s)", broker1.getBrokerId(), broker2.getBrokerId());
         broker2.linkBroker(brokerAddr3);
         System.out.printf("Broker (%s) linked to broker (%s)", broker2.getBrokerId(), broker3.getBrokerId());
-        sleep(1000);
-        member1OfBroker1 = new Member(brokerAddr1);
-        member2OfBroker1 = new Member(brokerAddr1);
-        member1OfBroker2 = new Member(brokerAddr2);
-        member2OfBroker2 = new Member(brokerAddr2);
-        member1OfBroker3 = new Member(brokerAddr3);
-        member2OfBroker3 = new Member(brokerAddr3);
-        member3OfBroker1 = new Member(brokerAddr1);
-        for (var member: I(member1OfBroker1,
-                           member2OfBroker1,
-                           member3OfBroker1,member1OfBroker2,
-                                            member2OfBroker2,member1OfBroker3,
-                                                             member2OfBroker3)) {
+    }
+    private void   restartBrokers() {
+        for (var broker: brokersList) {
+            broker.stopAccept();
+            broker.close();
+        }
+        initBrokers();
+    }
+    private void   initMembers   () {
+        membersList = new ArrayList<>(7);
+        member1OfBroker1 = managed(new Member(brokerAddr1));
+        member2OfBroker1 = managed(new Member(brokerAddr1));
+        member1OfBroker2 = managed(new Member(brokerAddr2));
+        member2OfBroker2 = managed(new Member(brokerAddr2));
+        member1OfBroker3 = managed(new Member(brokerAddr3));
+        member2OfBroker3 = managed(new Member(brokerAddr3));
+        member3OfBroker1 = managed(new Member(brokerAddr1));
+        for (var member: membersList) {
             System.out.printf("Member (%s) connecting ...", member.getMemberId());
             member.connect();
             System.out.println(" connection OK");
         }
     }
+
+    @org.junit.Before
+    public void setUp() {
+        t0 = Instant.now();
+        initBrokers();
+        sleep(1000);
+        initMembers();
+    }
     @org.junit.After
     public void tearDown() {
-        for (var member: I(member1OfBroker1,
-                           member2OfBroker1,
-                           member3OfBroker1,member1OfBroker2,
-                                            member2OfBroker2, member1OfBroker3,
-                                                              member2OfBroker3).filter(Objects::nonNull)) {
+        for (var member: I.of(membersList).filter(Objects::nonNull)) {
             member.close();
         }
-        for (var broker: I(broker1, broker2, broker3)) {
+        for (var broker: I.of(brokersList)) {
             broker.stopAccept().await();
             uncheck(() -> broker.getNetServer().getSocket().close());
         }
