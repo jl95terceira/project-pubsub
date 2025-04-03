@@ -89,7 +89,9 @@ public class Broker {
             }
             register.accept(memberId, socket);
             acceptedFuture.complete(null);
-            helloResponder.stop().await();
+            if (helloResponder.isRunning()) {
+                helloResponder.stop().await();
+            }
         }).start();
     }
     private void                       closeMemberConnection(UUID memberId) {
