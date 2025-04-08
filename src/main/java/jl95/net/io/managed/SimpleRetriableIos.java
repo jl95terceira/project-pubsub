@@ -26,6 +26,8 @@ public abstract class SimpleRetriableIos extends RetriableIos {
         put(peerAddress);
     }
 
+    public final void reconnect() { reconnect(peerAddress); }
+
     @Override protected final InetSocketAddress loadAddress    () {
         return peerAddress;
     }

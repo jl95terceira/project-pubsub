@@ -1,21 +1,20 @@
 package jl95.net.io;
 
 import jl95.lang.I;
-import jl95.net.io.managed.ManagedIos;
 import jl95.net.io.managed.RetriableIos;
 import jl95.net.io.managed.SimpleRetriableClientIos;
 import jl95.net.io.managed.SimpleRetriableIos;
+import jl95.net.io.managed.SimpleRetriableServerIos;
 import jl95.net.io.util.Util;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static jl95.lang.SuperPowers.*;
 
-public class TestRetriableSimple {
+public class TestRetriableOnReceiver {
 
     public static InetSocketAddress addr = new InetSocketAddress("127.0.0.1", 42421);
 
@@ -35,7 +34,7 @@ public class TestRetriableSimple {
     public Receiver receiver;
     public Sender   sender;
     public CompletableFuture<byte[]> payloadBackPromise;
-    public RetriableIos retriableIos;
+    public CompletableFuture<SimpleRetriableIos> retriableIosPromise = new CompletableFuture<>();
     public Integer restartsNr = 0;
 
     private void assertReceivesPayload(byte[] payload) throws Exception {
@@ -55,27 +54,21 @@ public class TestRetriableSimple {
         }
     }
     private void expectPayload() {
+        receiver.ensureStopped();
         payloadBackPromise = new CompletableFuture<>();
         receiver.recv(payloadBackPromise::complete);
     }
-    private void restartReceiver() {
+    private void restartSender() {
         restartsNr += 1;
-        System.out.printf ("Restarting receiver (nr of restart = %s)\n", restartsNr);
+        System.out.printf ("Restarting sender (nr of restart = %s)\n", restartsNr);
         System.out.println("  stop");
-        receiver.ensureStopped();
-        System.out.println("  close (connection closed - sender will have to reconnect)");
-        uncheck(receiver.getInputStream()::close);
+        System.out.println("  close (connection closed - receiver will have to reconnect)");
+        uncheck(sender.getOutputStream()::close);
+        sleep(1000);
         System.out.println("  new");
-        new Thread(() -> {
-            try {
-                receiver = Receiver.of(uncheck(Util.getSocketByAccept(addr)::getInputStream));
-                System.out.println("Restarted receiver OK");
-                expectPayload();
-            }
-            catch (Exception ex) {
-                System.out.println("Oops receiver not restarted - "+ex.toString());
-            }
-        }).start();
+        sender = Sender.of(uncheck(Util.getSocketByConnect(addr)::getOutputStream));
+        System.out.println("Sender receiver OK");
+        expectPayload();
     }
 
     @org.junit.After
@@ -85,9 +78,7 @@ public class TestRetriableSimple {
             receiver.ensureStopped();
             receiver.getInputStream().close();
         }
-        if (retriableIos != null) {
-            retriableIos.close();
-        }
+        retriableIosPromise.get().close();
     }
     @org.junit.AfterClass
     public static void tearDownStatic() {
@@ -96,18 +87,22 @@ public class TestRetriableSimple {
 
     @org.junit.Test
     public void testReconnection() throws Exception {
-        var receiverSocketFuture = Util.getSocketByAcceptFuture(addr);
-        retriableIos = SimpleRetriableClientIos.of(addr);
-        sleep(1000);
-        sender   = Sender.of(retriableIos);
-        receiver = Receiver.of(receiverSocketFuture.await().getInputStream());
+        var retriableIosPromise = new CompletableFuture<RetriableIos>();
+        new Thread(() -> {
+            retriableIosPromise.complete(SimpleRetriableServerIos.of(addr));
+        }).start();
+        sleep(500);
+        var senderSocketFuture = Util.getSocketByConnectFuture(addr);
+        sleep(500);
+        receiver = Receiver.of(retriableIosPromise.get());
+        sender   = Sender.of(senderSocketFuture.await().getOutputStream());
         System.out.println("Connected to receiver");
         expectPayload();
         var payloadMaker = function(() -> String.join("", I.range(10).map(i -> UUID.randomUUID().toString())).getBytes());
         assertReceivesPayload(payloadMaker.apply());
         // restart many times
         for (var r: I.range(5)) {
-            restartReceiver();
+            restartSender();
             sleep(1000);
             assertReceivesPayload(payloadMaker.apply());
         }
