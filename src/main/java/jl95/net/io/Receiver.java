@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import static jl95.lang.SuperPowers.function;
 import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.uncheck;
@@ -57,6 +58,11 @@ public class Receiver implements ReceiverIf<byte[]> {
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
         isReceiving = true;
+        var sleepAndContinue = function(() -> {
+            options.onInputTimeout();
+            sleep(options.inputRetryTimeoutMs());
+            return true;
+        });
         pool.execute(() -> {
             startFuture.complete(null);
             while (!toStop) {
@@ -65,20 +71,16 @@ public class Receiver implements ReceiverIf<byte[]> {
                     try {
                         var continueLoop = mis.withInput(is -> { return uncheck(() -> {
                             if (is.available() == 0) {
-                                options.onInputTimeout();
-                                sleep(options.inputRetryTimeoutMs());
-                                return true;
+                                return sleepAndContinue.apply();
                             }
-                            var sizeSize        = is.read();
+                            var sizeSize = is.read();
                             if (sizeSize == -1) {
-                                options.onInputTimeout();
-                                sleep(options.inputRetryTimeoutMs());
-                                return true;
+                                return sleepAndContinue.apply();
                             }
-                            var sizeAsBytes     = new byte[sizeSize];
+                            var sizeAsBytes = new byte[sizeSize];
                             is.read(sizeAsBytes, 0, sizeSize);
-                            var size            = new java.math.BigInteger(sizeAsBytes).intValue();
-                            incoming.value      = new byte[size];
+                            var size       = new java.math.BigInteger(sizeAsBytes).intValue();
+                            incoming.value = new byte[size];
                             is.read(incoming.value, 0, size);
                             return false;
                         }); });
