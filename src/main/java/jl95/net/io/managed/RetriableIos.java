@@ -26,15 +26,15 @@ import jl95.net.io.managed.util.Defaults;
 
 public abstract class RetriableIos implements ManagedIos, Closeable {
 
-    private final StrictMap<InetSocketAddress, CloseableIos> iosMapByAddr     = strict(new ConcurrentHashMap<>());
-    private final StrictMap<InetSocketAddress, Object> iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
-    private final StrictSet<InetSocketAddress> addrsReconnecting = strict(new HashSet<>());
+    private final StrictMap<InetSocketAddress, CloseableIos> iosMapByAddr        = strict(new ConcurrentHashMap<>());
+    private final StrictMap<InetSocketAddress, Object>       iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
+    private final StrictSet<InetSocketAddress>               addrsReconnecting   = strict(new HashSet<>());
     private       Function0<Integer>           retryTimeoutMs;
     private       Function1<Boolean, Integer>  retryPredicate;
     private       Boolean                      toStopRetries = false;
     private       Integer                      retriesSoFar  = 0;
     private       Function0<Integer>           reconnectTimeoutMs;
-    private       Method1<CloseableIos>        onConnection      = ios -> {};
+    private       Method1<CloseableIos>        onConnection  = ios -> {};
 
     private <T> T   retried    (Function1<T, Ios> f) {
         while (!toStopRetries) {

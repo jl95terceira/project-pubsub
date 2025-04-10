@@ -30,6 +30,7 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     private       InetSocketAddress            peerCurAddress;
     private       Function1<Boolean, Integer>  reswitchPredicate = null;
     private       Function0<Integer>           reswitchTimeoutMs = null;
+    private       Method1<InetSocketAddress>   reswitchHandler   = null;
 
     private Integer reswitchIo(Integer reswitchesSoFar) {
         switchIo();
@@ -71,6 +72,7 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     @Override protected final void              onIosException (InetSocketAddress addr, Exception ex) {
         reconnect(addr);
         reswitchIo(0);
+        ifNull(reswitchHandler, (addr_) -> {}).accept(addr);
     }
     @Override protected final void              retryExecute   (Method0 f) { pool.execute(f::accept); }
 
@@ -81,4 +83,5 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         reswitchPredicate = f;}
     public final void setReswitchLimit     (Integer max) {setReswitchPredicate(i -> i <= max);}
     public final void setReswitchTimeoutMs (Function0<Integer>          f) {reswitchTimeoutMs = f;}
+    public final void setReswitchHandler   (Method1<InetSocketAddress>  f) {reswitchHandler = f;}
 }

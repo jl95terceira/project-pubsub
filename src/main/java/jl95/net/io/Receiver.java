@@ -1,6 +1,8 @@
 package jl95.net.io;
 
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -58,30 +60,29 @@ public class Receiver implements ReceiverIf<byte[]> {
         startFuture = new CompletableFuture<>();
         stopFuture  = new CompletableFuture<>();
         isReceiving = true;
-        var sleepAndContinue = function(() -> {
-            options.onInputTimeout();
-            sleep(options.inputRetryTimeoutMs());
-            return true;
-        });
         pool.execute(() -> {
             startFuture.complete(null);
+            var timeouts     = new Ref<>(0);
+            var timeoutT0    = new Ref<>(Instant.now());
             while (!toStop) {
                 var incoming = new Ref<byte[]>();
                 try {
                     try {
                         var continueLoop = mis.withInput(is -> { return uncheck(() -> {
                             if (is.available() == 0) {
-                                return sleepAndContinue.apply();
+                                timeouts.set(v -> v + 1);
+                                options.onInputTimeout(new TimeoutInfo(timeouts.get(), Duration.between(timeoutT0.get(), Instant.now())));
+                                sleep(options.inputRetryTimeoutMs());
+                                return true;
                             }
+                            timeouts .set(0);
+                            timeoutT0.set(Instant.now());
                             var sizeSize = is.read();
-                            if (sizeSize == -1) {
-                                return sleepAndContinue.apply();
-                            }
                             var sizeAsBytes = new byte[sizeSize];
                             is.read(sizeAsBytes, 0, sizeSize);
                             var size       = new java.math.BigInteger(sizeAsBytes).intValue();
-                            incoming.value = new byte[size];
-                            is.read(incoming.value, 0, size);
+                            incoming.set(new byte[size]);
+                            is.read(incoming.get(), 0, size);
                             return false;
                         }); });
                         if (continueLoop) {
@@ -93,7 +94,7 @@ public class Receiver implements ReceiverIf<byte[]> {
                         break;
                     }
                     try {
-                        var toContinue = incomingCbToContinue.apply(incoming.value);
+                        var toContinue = incomingCbToContinue.apply(incoming.get());
                         if (!toContinue) {
                             toStop = true;
                         }

@@ -1,11 +1,14 @@
 package jl95.net.io.util;
 
+import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.uncheck;
 import static jl95.lang.SuperPowers.unchecked;
 
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.lang.Awaitable;
@@ -46,7 +49,15 @@ public class Util {
         var socket = new Socket();
         var future = new CompletableFuture<Socket>();
         new Thread(unchecked(() -> {
-            socket.connect(serverAddr);
+            var success = false;
+            while (!success) {
+                try {
+                    socket.connect(serverAddr);
+                    success = true;
+                } catch (SocketException ex) {
+                    sleep(500);
+                }
+            }
             future.complete(socket);
         })::accept).start();
         return Awaitable.of(future);

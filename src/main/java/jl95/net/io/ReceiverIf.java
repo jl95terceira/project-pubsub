@@ -3,6 +3,7 @@ package jl95.net.io;
 import static jl95.lang.SuperPowers.constant;
 
 import java.io.InputStream;
+import java.time.Duration;
 
 import jl95.lang.Awaitable;
 import jl95.lang.variadic.Function0;
@@ -12,12 +13,14 @@ import jl95.lang.variadic.Method1;
 
 public interface ReceiverIf<T> {
 
+    record TimeoutInfo(Integer  timeoutsSoFar,
+                       Duration timeoutAccum) {}
     interface RecvOptions {
 
         void    afterStop          ();
         void    onInputException   (Exception ex);
         void    onHandlingException(Exception ex);
-        void    onInputTimeout     ();
+        void    onInputTimeout     (TimeoutInfo timeoutInfo);
         Integer inputRetryTimeoutMs();
         
         class Editable implements RecvOptions {
@@ -25,13 +28,13 @@ public interface ReceiverIf<T> {
             public Method0              afterStop           = ()   -> {};
             public Method1<Exception>   inputExcHandler     = (ex) -> System.out.printf("Exception on reading input: %s%n", ex);
             public Method1<Exception>   handlingExcHandler  = (ex) -> System.out.printf("Exception on handling input: %s%n", ex);
-            public Method0              inputTimeoutHandler = ()   ->  {};
-            public Function0<Integer>   inputRetryTimeoutMs = constant(50);
+            public Method1<TimeoutInfo> inputTimeoutHandler = (info) ->  {};
+            public Function0<Integer>   inputRetryTimeoutMs = constant(100);
 
-            @Override public void afterStop          ()             { afterStop          .accept(); }
-            @Override public void onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
-            @Override public void onInputException   (Exception ex) { inputExcHandler    .accept(ex); }
-            @Override public void onInputTimeout     ()             { inputTimeoutHandler.accept(); }
+            @Override public void    afterStop          ()             { afterStop          .accept(); }
+            @Override public void    onHandlingException(Exception ex) { handlingExcHandler .accept(ex); }
+            @Override public void    onInputException   (Exception ex) { inputExcHandler    .accept(ex); }
+            @Override public void    onInputTimeout     (TimeoutInfo info) { inputTimeoutHandler.accept(info); }
             @Override public Integer inputRetryTimeoutMs()          { return inputRetryTimeoutMs.apply(); }
         }
         static RecvOptions defaults() {
@@ -72,6 +75,7 @@ public interface ReceiverIf<T> {
     }
     default void            ensureStopped() {
         try {
+            if (!isReceiving()) return;
             recvStop().await();
         }
         catch (Receiver.NotReceivingException ex) {
