@@ -15,6 +15,7 @@ import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
 import jl95.lang.variadic.Method1;
+import jl95.lang.variadic.Method2;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.managed.util.Defaults;
 
@@ -30,7 +31,7 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     private       InetSocketAddress            peerCurAddress;
     private       Function1<Boolean, Integer>  reswitchPredicate = null;
     private       Function0<Integer>           reswitchTimeoutMs = null;
-    private       Method1<InetSocketAddress>   reswitchHandler   = null;
+    private       Method2<InetSocketAddress, InetSocketAddress> reswitchHandler   = null;
 
     private Integer reswitchIo(Integer reswitchesSoFar) {
         switchIo();
@@ -72,16 +73,17 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     @Override protected final void              onIosException (InetSocketAddress addr, Exception ex) {
         reconnect(addr);
         reswitchIo(0);
-        ifNull(reswitchHandler, (addr_) -> {}).accept(addr);
     }
     @Override protected final void              retryExecute   (Method0 f) { pool.execute(f::accept); }
 
     public final void switchIo             () {
+        var peerPreviousAddress = peerCurAddress;
         peerCurAddress = peerAddressSwitcher.next();
+        ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, peerCurAddress);
     }
     public final void setReswitchPredicate (Function1<Boolean, Integer> f) {
         reswitchPredicate = f;}
     public final void setReswitchLimit     (Integer max) {setReswitchPredicate(i -> i <= max);}
     public final void setReswitchTimeoutMs (Function0<Integer>          f) {reswitchTimeoutMs = f;}
-    public final void setReswitchHandler   (Method1<InetSocketAddress>  f) {reswitchHandler = f;}
+    public final void setReswitchHandler   (Method2<InetSocketAddress, InetSocketAddress> f) {reswitchHandler = f;}
 }
