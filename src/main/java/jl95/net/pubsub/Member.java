@@ -180,43 +180,47 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
-        subscribeByList(sub.topicNames);
+
+        postget(sub, requesterIf.subListSender);
     }
     public final void subscribeByList (Set<String>         topicNames) {
 
         var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
-        postget(sub, requesterIf.subListSender);
+        subscribe(sub);
     }
     public final void subscribeByList (Iterable<String>    topicNames) {
 
         subscribeByList(I.of(topicNames).toSet());
     }
     public final void subscribe       (SubscriptionByRegex sub) {
-        subscribeByRegex(sub.topicPattern);
+
+        postget(sub, requesterIf.subReSender);
     }
     public final void subscribeByRegex(Pattern             topicPattern) {
 
         var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
-        postget(sub, requesterIf.subReSender);
+        subscribe(sub);
     }
     public final void subscribeByRegex(String              topicPattern) {
 
         subscribeByRegex(Pattern.compile(topicPattern));
     }
     public final void subscribe       (SubscriptionToAll   sub) {
-        subscribeToAll();
+
+        postget(sub, requesterIf.subAllSender);
     }
     public final void subscribeToAll  () {
 
-        postget(new SubscriptionToAll(), requesterIf.subAllSender);
+        subscribe(new SubscriptionToAll());
     }
     public final void subscribe       (SubscriptionToNone  sub) {
-        subscribeToNone();
+
+        postget(sub, requesterIf.subNoneSender);
     }
     public final void subscribeToNone () {
 
-        postget(new SubscriptionToNone(), requesterIf.subNoneSender);
+        subscribe(new SubscriptionToNone());
     }
 }
