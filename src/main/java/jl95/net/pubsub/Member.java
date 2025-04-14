@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -12,9 +13,12 @@ import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
 import jl95.lang.I;
+import jl95.lang.StrictMap;
 import jl95.lang.variadic.*;
 import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
+import jl95.net.io.managed.ManagedIos;
+import jl95.net.io.managed.SwitchingRetriableClientIos;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
@@ -55,9 +59,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         public final jl95.net.rpc.RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
         public final jl95.net.rpc.RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
 
-        public Requesting(Ios ios) {
+        public Requesting(ManagedIos ios) {
 
-            var jsonTypedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
+            var jsonTypedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromManagedIo(ios));
             this.pubSender       = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
                                              .getFunction   (MessageType.PUBLISH                  .value);
             this.closeSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(CloseJsonSerdes              ::toJson))
@@ -76,9 +80,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
         public final ResponderIf<JsonValue, Void> jsonReceiver;
 
-        public Responding(Ios ios) {
+        public Responding(ManagedIos ios) {
 
-            var sr = SenderReceiverIf.fromIo(ios);
+            var sr = SenderReceiverIf.fromManagedIo(ios);
             this.jsonReceiver = ResponderAdaptersCollection.asPostResponder(Responder.fromSr(sr));
         }
     }
@@ -86,35 +90,10 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     private final UUID                  memberId = UUID.randomUUID();
     private final Method0               closer;
     private final Requesting            requesterIf;
-    private final Responding            responderIf;
+    private final StrictMap<InetSocketAddress,Responding> responderIfMap;
     private final Method0               connectFunction;
     private final RequesterIf.SendOptions.Editable sendOptions = new RequesterIf.SendOptions.Editable();
     private       Method1<Publication>  pubCallback = (pub) -> {/* pass */};
-
-    private Member(CloseableIos requestsIos,
-                   CloseableIos responsesIos) {
-
-        this.closer   = unchecked(() -> {
-            requestsIos .close();
-            responsesIos.close();
-        });
-        this.requesterIf = new Requesting(requestsIos);
-        this.responderIf = new Responding(responsesIos);
-        connectFunction = () -> {
-            var requestsHelloRequester  = Requester.fromIo(requestsIos)
-                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-            var responsesHelloRequester = Requester.fromIo(responsesIos)
-                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-            postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
-            postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
-        };
-    }
-    private Member(Socket       requestsSocket,
-                   Socket       responsesSocket) {
-
-        this(CloseableIos.fromSocketLazy(requestsSocket),
-             CloseableIos.fromSocketLazy(responsesSocket));
-    }
 
     synchronized private <A, R> R postget       (A object, RequesterIf<Message<A>, R> sender) {
         var msg = new Message<A>();
@@ -132,8 +111,29 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this.pubCallback = pubCallback;
     }
 
-    public Member(InetSocketAddress brokerAddr) {
-        this(Util.getSocketByConnect(brokerAddr), Util.getSocketByConnect(brokerAddr));
+    public Member(InetSocketAddress... brokerAddrs) {
+
+        var responsesSocketMap = I(brokerAddrs).toMap(a -> a, Util::getSocketByConnect);
+        var requestsIos     = SwitchingRetriableClientIos.of(brokerAddrs);
+        var responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIos.of(CloseableIos.fromSocketLazy(e.getValue())));
+        this.closer   = unchecked(() -> {
+            requestsIos .getIo().close();
+            for (var responsesIos: responsesIosMap.values()) {
+                responsesIos.getIo().close();
+            }
+        });
+        this.requesterIf    = new Requesting(requestsIos);
+        this.responderIfMap = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new Responding(e.getValue())));
+        connectFunction = () -> {
+            var requestsHelloRequester  = Requester.fromManagedIo(requestsIos)
+                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+            postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
+            for (var responsesIos: responsesIosMap.values()) {
+                var responsesHelloRequester = Requester.fromManagedIo(responsesIos)
+                        .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+                postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
+            }
+        };
     }
 
     synchronized
@@ -202,6 +202,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     @Override
     synchronized public final void            consume         () {
+        for (var responderIf: responderIfMap.values())
         responderIf.jsonReceiver.respond(json -> {
             pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
             return null;
@@ -210,12 +211,21 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     @Override
     synchronized public final Awaitable<Void> consumeStop     () {
 
-        return responderIf.jsonReceiver.stop();
+        var futures = I.of(responderIfMap.values()).map(r -> r.jsonReceiver.stop()).toList();
+        return new Awaitable<Void>() {
+            @Override public Void await() {
+                for (var future: futures) future.await();
+                return null;
+            }
+            @Override public Boolean isDone() {
+                return I.all(I.of(futures).map(Awaitable::isDone));
+            }
+        };
     }
     @Override
     synchronized public final Boolean         isConsuming     () {
 
-        return responderIf.jsonReceiver.isRunning();
+        return I.all(I.of(responderIfMap.values()).map(r -> r.jsonReceiver.isRunning()));
     }
     @Override
     synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {
