@@ -136,43 +136,10 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this(Util.getSocketByConnect(brokerAddr), Util.getSocketByConnect(brokerAddr));
     }
 
-    synchronized public final void            connect         () {
+    synchronized
+    public final void connect         () {
         connectFunction.accept();
     }
-    @Override
-    synchronized public final void            produce         (String topicName,
-                                                               JsonValue data) {
-
-        var pub = new Publication();
-        pub.topicName = topicName;
-        pub.data      = data;
-        produce(pub);
-    }
-    @Override
-    synchronized public final void            consume         () {
-        responderIf.jsonReceiver.respond(json -> {
-            pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
-            return null;
-        });
-    }
-    @Override
-    synchronized public final Awaitable<Void> consumeStop     () {
-
-        return responderIf.jsonReceiver.stop();
-    }
-    @Override
-    synchronized public final Boolean         isConsuming     () {
-
-        return responderIf.jsonReceiver.isRunning();
-    }
-    @Override
-    synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {
-
-        onConsumed(pub -> {
-            pubCallback.accept(pub.topicName, pub.data);
-        });
-    }
-
     public final UUID getMemberId     () { return memberId; }
     public final void close           () {
 
@@ -222,5 +189,39 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     public final void subscribeToNone () {
 
         subscribe(new SubscriptionToNone());
+    }
+
+    @Override
+    synchronized public final void            produce         (String topicName,
+                                                               JsonValue data) {
+
+        var pub = new Publication();
+        pub.topicName = topicName;
+        pub.data      = data;
+        produce(pub);
+    }
+    @Override
+    synchronized public final void            consume         () {
+        responderIf.jsonReceiver.respond(json -> {
+            pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
+            return null;
+        });
+    }
+    @Override
+    synchronized public final Awaitable<Void> consumeStop     () {
+
+        return responderIf.jsonReceiver.stop();
+    }
+    @Override
+    synchronized public final Boolean         isConsuming     () {
+
+        return responderIf.jsonReceiver.isRunning();
+    }
+    @Override
+    synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {
+
+        onConsumed(pub -> {
+            pubCallback.accept(pub.topicName, pub.data);
+        });
     }
 }
