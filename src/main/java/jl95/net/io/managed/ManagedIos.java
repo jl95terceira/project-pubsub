@@ -1,10 +1,13 @@
 package jl95.net.io.managed;
 
+import static jl95.lang.SuperPowers.function;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 import jl95.lang.variadic.*;
+import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
 
 public interface ManagedIos extends ManagedIs, ManagedOs {
@@ -18,6 +21,7 @@ public interface ManagedIos extends ManagedIs, ManagedOs {
             return null;
         });
     }
+    default CloseableIos getIo() { return withIo(function((i,o) -> CloseableIos.of(i,o))); }
 
     static ManagedIos of(Ios ios) { return new ManagedIos() {
 
