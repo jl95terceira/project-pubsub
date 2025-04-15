@@ -170,7 +170,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
     public final void           setRetryTimeoutMs (Function0<Integer> t) { this.retryTimeoutMs = t; }
     public final void           setRetryTimeoutMs (Integer            t) { setRetryTimeoutMs(constant(t)); }
     public final void           setRetryPredicate (Function1<Boolean, Integer> f) { this.retryPredicate = f; }
-    public final void           setRetryLimit     (Integer max) { setRetryPredicate(n -> n <= max); }
+    public final void           setRetryLimit     (Integer max) { setRetryPredicate(n -> n < max); }
     public final Integer        getRetriesSoFar   () {return retriesSoFar;}
     public final void           stopRetries       () {
         toStopRetries = true;

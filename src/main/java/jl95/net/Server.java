@@ -98,6 +98,9 @@ public class Server {
     synchronized public final ServerSocket    getSocket() { return serverSocket; }
 
     public void close() {
+        if (isRunning()) {
+            stop().await();
+        }
         uncheck(getSocket()::close);
     }
 }

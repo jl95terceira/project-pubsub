@@ -3,7 +3,6 @@ package jl95.net.pubsub;
 import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -11,15 +10,15 @@ import java.util.regex.Pattern;
 
 import javax.json.JsonValue;
 
-import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.StrictMap;
 import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
-import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
 import jl95.net.io.managed.ManagedIos;
+import jl95.net.io.managed.RetriableIos;
 import jl95.net.io.managed.SwitchingRetriableClientIos;
+import jl95.net.io.managed.SwitchingRetriableIos;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
@@ -47,7 +46,6 @@ import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
-import jl95.net.rpc.util.Defaults;
 
 public class Member implements MemberIf<JsonValue, JsonValue> {
 
@@ -93,18 +91,28 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private final UUID                  memberId = UUID.randomUUID();
     private final Method0               closer;
+    private final SwitchingRetriableIos requestsIos;
     private final Requesting            requesterIf;
     private final StrictMap<InetSocketAddress,Responding> responderIfMap;
     private final Method0               connectFunction;
-    private final RequesterIf.SendOptions.Editable sendOptions = new RequesterIf.SendOptions.Editable();
+    private final RequesterIf.SendOptions.Editable sendOptionsGeneral = new RequesterIf.SendOptions.Editable();
+    private final RequesterIf.SendOptions.Editable sendOptionsClose   = function(() -> {
+        var options = new RequesterIf.SendOptions.Editable();
+        options.responseTimeoutMs = constant(3000);
+        return options;
+    }).apply();
+    private       Boolean               connected   = false;
     private       Method1<Publication>  pubCallback = (pub) -> {/* pass */};
 
-    synchronized private <A, R> R postget       (A object, RequesterIf<Message<A>, R> sender) {
+    synchronized private <A, R> R postget       (A object, RequesterIf<Message<A>, R> sender, RequesterIf.SendOptions options) {
         var msg = new Message<A>();
         msg.id       = UUID.randomUUID();
         msg.body     = object;
         msg.memberId = memberId;
-        return sender.apply(msg, sendOptions);
+        return sender.apply(msg, options);
+    }
+    synchronized private <A, R> R postget       (A object, RequesterIf<Message<A>, R> sender) {
+        return postget(object, sender, sendOptionsGeneral);
     }
     synchronized private     void produce       (Publication pub) {
 
@@ -115,20 +123,20 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this.pubCallback = pubCallback;
     }
 
-    public Member(Iterable<InetSocketAddress> brokerAddrs) {
+    private Member(Iterable<InetSocketAddress> brokerAddrs) {
 
-        var responsesSocketMap = I.of(brokerAddrs).toMap(a -> a, Util::getSocketByConnect);
-        var requestsIos     = SwitchingRetriableClientIos.of(brokerAddrs);
-        var responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIos.of(CloseableIos.fromSocketLazy(e.getValue())));
-        this.closer   = unchecked(() -> {
-            requestsIos .getIo().close();
+        var responsesSocketMap  = I.of(brokerAddrs).toMap(a -> a, Util::getSocketByConnect);
+        requestsIos             = SwitchingRetriableClientIos.of(brokerAddrs);
+        var responsesIosMap     = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIos.of(CloseableIos.fromSocketLazy(e.getValue())));
+        this.closer             = unchecked(() -> {
+            requestsIos.close();
             for (var responsesIos: responsesIosMap.values()) {
-                responsesIos.getIo().close();
+                responsesIos.getInputStream().close();
             }
         });
-        this.requesterIf    = new Requesting(requestsIos);
-        this.responderIfMap = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new Responding(e.getValue())));
-        connectFunction = () -> {
+        this.requesterIf        = new Requesting(requestsIos);
+        this.responderIfMap     = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new Responding(e.getValue())));
+        connectFunction         = () -> {
             var requestsHelloRequester  = Requester.fromManagedIo(requestsIos)
                 .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
             postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
@@ -142,12 +150,20 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     synchronized
     public final void connect         () {
+
         connectFunction.accept();
+        connected = true;
     }
     public final UUID getMemberId     () { return memberId; }
     public final void close           () {
 
-        postget(new Close(), requesterIf.closeSender);
+        requestsIos.setRetryLimit(0);
+        if (connected) {
+            try {
+                postget(new Close(), requesterIf.closeSender, sendOptionsClose);
+            }
+            catch (RetriableIos.NoMoreRetriesException ex) {}
+        }
         closer.accept();
     }
     public final void subscribe       (SubscriptionByList  sub) {
