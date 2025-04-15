@@ -73,13 +73,13 @@ public class Test1To1 {
     }
     private void   initMembers   () {
         membersList = new ArrayList<>(7);
-        member1OfBroker1 = managed(new Member(brokerAddr1));
-        member2OfBroker1 = managed(new Member(brokerAddr1));
-        member1OfBroker2 = managed(new Member(brokerAddr2));
-        member2OfBroker2 = managed(new Member(brokerAddr2));
-        member1OfBroker3 = managed(new Member(brokerAddr3));
-        member2OfBroker3 = managed(new Member(brokerAddr3));
-        member3OfBroker1 = managed(new Member(brokerAddr1));
+        member1OfBroker1 = managed(Member.of(brokerAddr1));
+        member2OfBroker1 = managed(Member.of(brokerAddr1));
+        member1OfBroker2 = managed(Member.of(brokerAddr2));
+        member2OfBroker2 = managed(Member.of(brokerAddr2));
+        member1OfBroker3 = managed(Member.of(brokerAddr3));
+        member2OfBroker3 = managed(Member.of(brokerAddr3));
+        member3OfBroker1 = managed(Member.of(brokerAddr1));
         for (var member: membersList) {
             System.out.printf("Member (%s) connecting ...", member.getMemberId());
             member.connect();
@@ -105,7 +105,7 @@ public class Test1To1 {
         }
     }
 
-    public void testPubSub         (Member producerMember, Member consumerMember) {
+    public final void testPubSub         (Member producerMember, Member consumerMember) {
         var m = method(() -> {
             var msgFuture = new CompletableFuture<String>();
             System.out.println("consume");
@@ -125,7 +125,7 @@ public class Test1To1 {
         m.accept();
         m.accept();
     }
-    public void testPubNoSub       (Member producerMember, Member consumerMember) {
+    public final void testPubNoSub       (Member producerMember, Member consumerMember) {
         var m = method(() -> {
             var msgFuture = new CompletableFuture<String>();
             System.out.println("consume");
@@ -143,7 +143,7 @@ public class Test1To1 {
         m.accept();
         m.accept();
     }
-    public void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
+    public final void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
         var m = method(() -> {
             var msgFuture = new CompletableFuture<String>();
             System.out.println("consume");
