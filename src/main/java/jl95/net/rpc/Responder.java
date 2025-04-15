@@ -5,6 +5,7 @@ import java.util.UUID;
 import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.util.serdes.RequestJsonSerdes;
 import jl95.net.rpc.util.serdes.ResponseJsonSerdes;
@@ -48,7 +49,7 @@ public class Responder implements ResponderIf<JsonValue, JsonValue> {
     }
 
     @Override
-    synchronized public Awaitable<Void> respondWhile(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction,
+    synchronized public VoidAwaitable respondWhile(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction,
                                                      RespondOptions options) {
 
         if (isRunning()) {
@@ -72,7 +73,7 @@ public class Responder implements ResponderIf<JsonValue, JsonValue> {
         }, options);
     }
     @Override
-    synchronized public Awaitable<Void> stop() {
+    synchronized public VoidAwaitable stop() {
 
         if (!isRunning()) throw new StopWhenNotRunningException();
         return receiver.recvStop();

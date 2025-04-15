@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
@@ -65,7 +66,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue,
         callbacksCases.remove(typeAlias);
     }
     @Override
-    public final Awaitable<Void> start     () {
+    public final VoidAwaitable   start     () {
 
         return responder.respondWhile(tp -> {
             var callback = callbacksCases.getOrDefault(tp.typeAlias, callbacksDefault);
@@ -73,7 +74,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue,
         });
     }
     @Override
-    public final Awaitable<Void> stop      () {
+    public final VoidAwaitable   stop      () {
 
         return responder.stop();
     }

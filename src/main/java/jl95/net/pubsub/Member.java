@@ -14,6 +14,7 @@ import javax.json.JsonValue;
 import jl95.lang.Awaitable;
 import jl95.lang.I;
 import jl95.lang.StrictMap;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
 import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
@@ -87,6 +88,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         }
     }
 
+    public static Member of(Iterable<InetSocketAddress> addrs) {return new Member(addrs);}
+    public static Member of(InetSocketAddress...        addrs) {return new Member(I(addrs));}
+
     private final UUID                  memberId = UUID.randomUUID();
     private final Method0               closer;
     private final Requesting            requesterIf;
@@ -111,9 +115,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this.pubCallback = pubCallback;
     }
 
-    public Member(InetSocketAddress... brokerAddrs) {
+    public Member(Iterable<InetSocketAddress> brokerAddrs) {
 
-        var responsesSocketMap = I(brokerAddrs).toMap(a -> a, Util::getSocketByConnect);
+        var responsesSocketMap = I.of(brokerAddrs).toMap(a -> a, Util::getSocketByConnect);
         var requestsIos     = SwitchingRetriableClientIos.of(brokerAddrs);
         var responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIos.of(CloseableIos.fromSocketLazy(e.getValue())));
         this.closer   = unchecked(() -> {
@@ -209,16 +213,15 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         });
     }
     @Override
-    synchronized public final Awaitable<Void> consumeStop     () {
+    synchronized public final VoidAwaitable   consumeStop     () {
 
         var futures = I.of(responderIfMap.values()).map(r -> r.jsonReceiver.stop()).toList();
-        return new Awaitable<Void>() {
-            @Override public Void await() {
+        return new VoidAwaitable() {
+            @Override public void await() {
                 for (var future: futures) future.await();
-                return null;
             }
             @Override public Boolean isDone() {
-                return I.all(I.of(futures).map(Awaitable::isDone));
+                return I.all(I.of(futures).map(VoidAwaitable::isDone));
             }
         };
     }

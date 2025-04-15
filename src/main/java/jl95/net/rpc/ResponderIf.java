@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.tuple;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Tuple2;
 import jl95.net.io.Receiver;
@@ -17,30 +18,30 @@ public interface ResponderIf<A, R> {
         static RespondOptions defaults() { return new Editable(); }
     }
 
-    Awaitable<Void> respondWhile(Function1<Tuple2<R, Boolean>, A> responseFunction,
+    VoidAwaitable respondWhile(Function1<Tuple2<R, Boolean>, A> responseFunction,
                                  RespondOptions                   options);
-    Awaitable<Void> stop        ();
-    Boolean         isRunning   ();
+    VoidAwaitable stop        ();
+    Boolean       isRunning   ();
 
-    default Awaitable<Void> respondWhile(Function1<Tuple2<R, Boolean>, A> responseFunction) {
+    default VoidAwaitable respondWhile(Function1<Tuple2<R, Boolean>, A> responseFunction) {
 
         return respondWhile(responseFunction, RespondOptions.defaults());
     }
-    default Awaitable<Void> respond     (Function1<R, A> responseFunction,
+    default VoidAwaitable respond     (Function1<R, A> responseFunction,
                                          RespondOptions options) {
         return respondWhile(request -> tuple(responseFunction.apply(request), true), options);
     }
-    default Awaitable<Void> respond     (Function1<R, A> responseFunction) {
+    default VoidAwaitable respond     (Function1<R, A> responseFunction) {
         return respond(responseFunction, RespondOptions.defaults());
     }
-    default Awaitable<Void> respondOnce (Function1<R, A> responseFunction,
+    default VoidAwaitable respondOnce (Function1<R, A> responseFunction,
                                          RespondOptions options) {
         return respondWhile(request -> tuple(responseFunction.apply(request), false), options);
     }
-    default Awaitable<Void> respondOnce (Function1<R, A> responseFunction) {
+    default VoidAwaitable respondOnce (Function1<R, A> responseFunction) {
         return respondOnce(responseFunction, RespondOptions.defaults());
     }
-    default void            ensureStopped() {
+    default void          ensureStopped() {
         try {
             stop().await();
         }
@@ -52,7 +53,7 @@ public interface ResponderIf<A, R> {
                                                          Function1<R, R2> responseAdapter) {
         return new ResponderIf<>() {
 
-            @Override public Awaitable<Void> respondWhile(Function1<Tuple2<R2, Boolean>, A2> responseFunction,
+            @Override public VoidAwaitable respondWhile(Function1<Tuple2<R2, Boolean>, A2> responseFunction,
                                                           RespondOptions                     options) {
                 return ResponderIf.this.respondWhile(request -> {
                     var adaptedRequest = requestAdapter.apply(request);
@@ -60,7 +61,7 @@ public interface ResponderIf<A, R> {
                     return tuple(responseAdapter.apply(response.a1), response.a2);
                 }, options);
             }
-            @Override public Awaitable<Void> stop        () {
+            @Override public VoidAwaitable stop        () {
                 return ResponderIf.this.stop();
             }
             @Override public Boolean         isRunning   () {

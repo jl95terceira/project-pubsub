@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.concurrent.*;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.net.io.Ios;
 import jl95.net.io.Sender;
 import jl95.net.pubsub.protocol.Publication;
@@ -47,7 +48,7 @@ public class MemberResponsesConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    synchronized public final void            startQueueLoop   () {
+    synchronized public final void          startQueueLoop   () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -62,12 +63,12 @@ public class MemberResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final Awaitable<Void> stopQueueLoop    () {
+    synchronized public final VoidAwaitable stopQueueLoop    () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
-        return Awaitable.of(queueStopFuture);
+        return VoidAwaitable.of(queueStopFuture);
     }
-    synchronized public final Boolean         isPubQueueRunning() { return queueIsOn; }
+    synchronized public final Boolean       isPubQueueRunning() { return queueIsOn; }
 
     public final void   addToQueue(Message<Publication> pubMsg) {
 

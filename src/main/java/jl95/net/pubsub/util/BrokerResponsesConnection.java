@@ -92,7 +92,7 @@ public class BrokerResponsesConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    synchronized public final void            startQueueLoop    () {
+    synchronized public final void          startQueueLoop    () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -107,12 +107,12 @@ public class BrokerResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final Awaitable<Void> stopQueueLoop     () {
+    synchronized public final VoidAwaitable stopQueueLoop     () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
-        return Awaitable.of(queueStopFuture);
+        return VoidAwaitable.of(queueStopFuture);
     }
-    synchronized public final Boolean         isQueueLoopRunning() { return queueIsOn; }
+    synchronized public final Boolean       isQueueLoopRunning() { return queueIsOn; }
 
     public final void           addToQueue(Method1<Callbacks> cbCaller) {
 

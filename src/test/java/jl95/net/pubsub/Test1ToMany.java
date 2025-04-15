@@ -1,6 +1,7 @@
 package jl95.net.pubsub;
 
 import static jl95.lang.SuperPowers.I;
+import static jl95.lang.SuperPowers.method;
 import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.tuple;
 import static jl95.lang.SuperPowers.uncheck;
@@ -60,13 +61,13 @@ public class Test1ToMany {
     public void teardown() {
         System.out.println("Closing");
         for (var t: I(
-            tuple("Broker 1", broker1),
-            tuple("Broker 2", broker2),
-            tuple("Member of broker 1", memberOfBroker1),
-            tuple("Member of broker 2", memberOfBroker2),
-            tuple("Member of both brokers", memberOfBothBrokers)
+            tuple("Broker 1",               method(broker1            ::close)),
+            tuple("Broker 2",               method(broker2            ::close)),
+            tuple("Member of broker 1",     method(memberOfBroker1    ::close)),
+            tuple("Member of broker 2",     method(memberOfBroker2    ::close)),
+            tuple("Member of both brokers", method(memberOfBothBrokers::close))
         )){
-            t.a2.close();
+            t.a2.accept();
             System.out.printf("%s CLOSED\n", t.a1);
         }
     }
@@ -93,7 +94,7 @@ public class Test1ToMany {
 
         go();
         for (var broker: I(broker1, broker2)) {
-            broker.dropAllMembers();
+            broker.resetConnections();
         }
         go();
     }

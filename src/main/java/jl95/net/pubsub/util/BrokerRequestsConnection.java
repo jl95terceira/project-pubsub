@@ -7,6 +7,7 @@ import java.net.Socket;
 import javax.json.JsonValue;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.Function1;
 import jl95.net.io.Ios;
 import jl95.net.pubsub.protocol.Close;
@@ -89,20 +90,20 @@ public class BrokerRequestsConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    public final Awaitable<Void> startRespond         () {
+    public final VoidAwaitable startRespond         () {
 
         return memberIf.switchedResponder.start();
     }
-    public final Awaitable<Void> stopRespond          () {
+    public final VoidAwaitable stopRespond          () {
 
         return memberIf.switchedResponder.stop();
     }
-    public final Boolean         isResponding         () {
+    public final Boolean       isResponding         () {
 
         return memberIf.switchedResponder.isRunning();
     }
-    public final Socket          getSocket            () { return socket; }
-    public final void            close                () {
+    public final Socket        getSocket            () { return socket; }
+    public final void          close                () {
         if (isResponding()) {
             stopRespond();
         }

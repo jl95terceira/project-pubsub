@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.time.Duration;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.Function0;
 import jl95.lang.variadic.Function1;
 import jl95.lang.variadic.Method0;
@@ -42,38 +43,38 @@ public interface ReceiverIf<T> {
         }
     }
 
-    Awaitable<Void> recvWhile     (Function1<Boolean, T> incomingCbToContinue,
+    VoidAwaitable   recvWhile     (Function1<Boolean, T> incomingCbToContinue,
                                    RecvOptions           options);
-    Awaitable<Void> recvStop      ();
+    VoidAwaitable   recvStop      ();
     Boolean         isReceiving   ();
     InputStream     getInputStream();
 
-    default Awaitable<Void> recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
+    default VoidAwaitable recvWhile    (Function1<Boolean, T> incomingCbToContinue) {
 
         return recvWhile(incomingCbToContinue, RecvOptions.defaults());
     }
-    default Awaitable<Void> recv         (Method1<T>            incomingCb,
-                                          RecvOptions           options) {
+    default VoidAwaitable recv         (Method1<T>            incomingCb,
+                                        RecvOptions           options) {
         return recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return true;
         }, options);
     }
-    default Awaitable<Void> recv         (Method1<T>            incomingCb) {
+    default VoidAwaitable recv         (Method1<T>            incomingCb) {
 
         return recv(incomingCb, RecvOptions.defaults());
     }
-    default Awaitable<Void> recvOnce     (Method1<T>            incomingCb,
-                                          RecvOptions           options) {
+    default VoidAwaitable recvOnce     (Method1<T>            incomingCb,
+                                        RecvOptions           options) {
         return recvWhile(incoming -> {
             incomingCb.accept(incoming);
             return false;
         }, options);
     }
-    default Awaitable<Void> recvOnce     (Method1<T>            incomingCb) {
+    default VoidAwaitable recvOnce     (Method1<T>            incomingCb) {
         return recvOnce(incomingCb, RecvOptions.defaults());
     }
-    default void            ensureStopped() {
+    default void          ensureStopped() {
         try {
             if (!isReceiving()) return;
             recvStop().await();
@@ -85,13 +86,13 @@ public interface ReceiverIf<T> {
     default <T2> ReceiverIf<T2> adaptedReceiver(Function1<T2, T> adapterFunction) {
         return new ReceiverIf<>() {
 
-            @Override public Awaitable<Void>  recvWhile     (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
+            @Override public VoidAwaitable  recvWhile     (Function1<Boolean, T2> incomingCbToContinue, RecvOptions options) {
                 return ReceiverIf.this.recvWhile(incoming -> {
                     var adaptedIncoming = adapterFunction.apply(incoming);
                     return incomingCbToContinue.apply(adaptedIncoming);
                 }, options);
             }
-            @Override public Awaitable<Void>  recvStop      () {
+            @Override public VoidAwaitable  recvStop      () {
                 return ReceiverIf.this.recvStop();
             }
             @Override public Boolean          isReceiving   () {

@@ -10,6 +10,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import jl95.lang.Awaitable;
+import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
 
 public class Server {
@@ -52,7 +53,7 @@ public class Server {
         acceptTimeoutCb = cb;
     }
 
-    synchronized public final Awaitable<Void> start    () {
+    synchronized public final VoidAwaitable   start    () {
 
         if (isRunning()) throw new IllegalStateException();
         toStop      = false;
@@ -84,14 +85,14 @@ public class Server {
             isRunning = false;
         }).start();
         isRunning = true;
-        return Awaitable.of(startFuture);
+        return VoidAwaitable.of(startFuture);
     }
-    synchronized public final Awaitable<Void> stop     () {
+    synchronized public final VoidAwaitable   stop     () {
 
         if (!isRunning()) throw new IllegalStateException();
         if (stopFuture == null) throw new AssertionError();
         toStop = true;
-        return Awaitable.of(stopFuture);
+        return VoidAwaitable.of(stopFuture);
     }
     synchronized public final Boolean         isRunning() { return isRunning; }
     synchronized public final ServerSocket    getSocket() { return serverSocket; }

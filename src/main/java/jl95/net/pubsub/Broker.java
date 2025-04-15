@@ -6,16 +6,14 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import jl95.lang.AutoMapper;
 import jl95.lang.AutoMappersCollection;
 import jl95.lang.Awaitable;
 import jl95.lang.StrictMap;
+import jl95.lang.VoidAwaitable;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
 import jl95.net.pubsub.listen.UpdateSubscription;
@@ -64,7 +62,7 @@ public class Broker {
         this(Util.getSimpleServerSocket(addr));
     }
 
-    private void                       onAccept             (Socket socket) {
+    private void                       onAccept       (Socket socket) {
         new Thread(() -> {
             var memberIdFuture   = new CompletableFuture<UUID>();
             var helloTypeFuture  = new CompletableFuture<Hello.Type>();
@@ -94,7 +92,7 @@ public class Broker {
             }
         }).start();
     }
-    private void                       closeMemberConnection(UUID memberId) {
+    private void                       resetConnection(UUID memberId) {
         memberRequestsMap .get   (memberId).close();
         memberRequestsMap .remove(memberId);
         memberResponsesMap.get   (memberId).close();
@@ -204,11 +202,11 @@ public class Broker {
         }
     }
 
-    public final Awaitable<Void>            startAccept     () {
+    public final VoidAwaitable              startAccept     () {
 
         return netServer.start();
     }
-    public final Awaitable<Void>            stopAccept      () {
+    public final VoidAwaitable              stopAccept      () {
 
         return netServer.stop();
     }
@@ -242,10 +240,10 @@ public class Broker {
         linkBroker(Util.getSocketByConnect(addr),
                    Util.getSocketByConnect(addr));
     }
-    public final void                       closeConnections() {
+    public final void                       resetConnections() {
 
         for (var clientId: memberRequestsMap.keySet()) {
-            closeMemberConnection(clientId);
+            resetConnection(clientId);
         }
     }
     public final jl95.net.Server            getNetServer    () {
@@ -253,7 +251,7 @@ public class Broker {
         return netServer;
     }
     public final void                       close           () {
-        closeConnections();
+        resetConnections();
         getNetServer().close();
     }
     // listeners
