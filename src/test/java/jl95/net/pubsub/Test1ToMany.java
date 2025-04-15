@@ -7,6 +7,7 @@ import static jl95.lang.SuperPowers.tuple;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.InetSocketAddress;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
@@ -24,12 +25,15 @@ public class Test1ToMany {
     public Member memberOfBroker2;
     public Member memberOfBothBrokers;
 
-    public void initBroker1() {
+    private void zzz() {
+        sleep(Parameters.zzzDuration);
+    }
+    private void initBroker1() {
 
         broker1 = new Broker(BROKER_1_ADDRESS);
         broker1.startAccept();
     }
-    public void initBroker2() {
+    private void initBroker2() {
 
         broker2 = new Broker(BROKER_2_ADDRESS);
         broker2.startAccept();
@@ -43,19 +47,22 @@ public class Test1ToMany {
         System.out.println("Broker 2 UP");
         sleep(1000);
         memberOfBroker1     = Member.of(BROKER_1_ADDRESS);
-        System.out.println("Member of broker 1 UP");
+        System.out.print("Member of broker 1 UP");
         memberOfBroker1.connect();
-        System.out.println("                      and CONNECTED");
+        System.out.println(" and CONNECTED");
         memberOfBroker2     = Member.of(BROKER_2_ADDRESS);
-        System.out.println("Member of broker 2 UP");
+        System.out.print("Member of broker 2 UP");
         memberOfBroker2.connect();
-        System.out.println("                      and CONNECTED");
+        System.out.println(" and CONNECTED");
         memberOfBothBrokers = Member.of(BROKER_1_ADDRESS, BROKER_2_ADDRESS);
-        System.out.println("Member of both brokers UP");
+        System.out.print("Member of both brokers UP");
         memberOfBothBrokers.connect();
-        System.out.println("                          and CONNECTED");
+        System.out.print(" and CONNECTED");
         memberOfBothBrokers.subscribeByList(I(TOPIC_NAME));
-        System.out.println("Member of both brokers SUBSCRIBED");
+        System.out.println(" and SUBSCRIBED");
+        memberOfBothBrokers.consume();
+        System.out.println(" and CONSUMING");
+        zzz();
     }
     @org.junit.After
     public void teardown() {
@@ -73,23 +80,34 @@ public class Test1ToMany {
     }
 
     public void go() {
-        var msg        = "hello, world";
-        var msgPromise = new CompletableFuture<String>();
-        MemberAdaptersCollection.getStringConsumer(memberOfBothBrokers).consume((topic, msg_) -> msgPromise.complete(msg_));
-        MemberAdaptersCollection.getStringProducer(memberOfBroker1)    .produce(TOPIC_NAME, msg);
-        org.junit.Assert.assertEquals(msg, uncheck(() -> msgPromise.get()));
+        for (var t: I(
+            tuple(memberOfBroker1, "Member of broker 1"),
+            tuple(memberOfBroker2, "Member of broker 2")
+        )) {
+            var member = t.a1;
+            var descr  = t.a2;
+            System.out.printf("Testing with %s\n", descr);
+            var msg    = "hello, %s".formatted(UUID.randomUUID().toString());
+            var msgPromise = new CompletableFuture<String>();
+            MemberAdaptersCollection.getStringConsumer(memberOfBothBrokers)
+                .onConsumed((topic, msg_) -> msgPromise.complete(msg_));
+            MemberAdaptersCollection.getStringProducer(member)
+                .produce(TOPIC_NAME, msg);
+            System.out.println("Produced - waiting for consumed back");
+            org.junit.Assert.assertEquals(msg, uncheck(() -> msgPromise.get()));
+            System.out.println("OK");
+        }
     }
 
     @org.junit.Test
     public void testOpenClose() {}
     @org.junit.Test
-    public void testOpenClose2() {}
-//    @org.junit.Test
     public void testNoInterrupt() {
 
         go();
+        go();
     }
-//    @org.junit.Test
+    @org.junit.Test
     public void testInterruptSoft() {
 
         go();
@@ -98,7 +116,7 @@ public class Test1ToMany {
         }
         go();
     }
-//    @org.junit.Test
+    @org.junit.Test
     public void testInterruptHard() {
 
         go();

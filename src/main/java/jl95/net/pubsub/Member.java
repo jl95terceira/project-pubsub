@@ -222,11 +222,12 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     @Override
     synchronized public final void            consume         () {
-        for (var responderIf: responderIfMap.values())
-        responderIf.jsonReceiver.respond(json -> {
-            pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
-            return null;
-        });
+        for (var responderIf: responderIfMap.values()) {
+            responderIf.jsonReceiver.respond(json -> {
+                pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
+                return null;
+            });
+        }
     }
     @Override
     synchronized public final VoidAwaitable   consumeStop     () {
@@ -249,7 +250,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     @Override
     synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {
 
-        onConsumed(pub -> {
+        onConsumed((Publication pub) -> {
             pubCallback.accept(pub.topicName, pub.data);
         });
     }
