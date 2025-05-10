@@ -255,10 +255,7 @@ public class Broker {
         getNetServer().close();
     }
     // listeners
-    public final UUID                       addListenerOnUpdateSubscription   (Method1<UpdateSubscription> listener) {
-        return listenersOnUpdateSubscriptionAutoMapper.put(listener);
-    }
-    public final void                       removeListenerOnUpdateSubscription(UUID listenerId) {
-        listenersOnUpdateSubscriptionMap.remove(listenerId);
+    public final AutoMapper<UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscription(Method1<UpdateSubscription> listener) {
+        return listenersOnUpdateSubscriptionAutoMapper;
     }
 }
