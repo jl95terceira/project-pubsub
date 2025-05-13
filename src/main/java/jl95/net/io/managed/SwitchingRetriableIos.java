@@ -34,7 +34,7 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     private       Method2<InetSocketAddress, InetSocketAddress> reswitchHandler   = null;
 
     private Integer reswitchIo(Integer reswitchesSoFar) {
-        switchIo();
+        switchAddress();
         if (!ifNull(reswitchPredicate, i -> true).apply(reswitchesSoFar)) {
             throw new NoMoreRetriesException();
         }
@@ -50,11 +50,11 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
         if (addrsList.isEmpty()) {
             throw new NoAddressesException();
         }
+        peerAddressSwitcher = I.of(addrsList).cycle().iterator();
+        peerCurAddress = peerAddressSwitcher.next();
         for (var addr: addrsList) {
             put(addr);
         }
-        peerAddressSwitcher = I.of(addrsList).cycle().iterator();
-        peerCurAddress = peerAddressSwitcher.next();
     }
 
     @Override protected final InetSocketAddress loadAddress    () {
@@ -76,14 +76,14 @@ public abstract class SwitchingRetriableIos extends RetriableIos {
     }
     @Override protected final void              retryExecute   (Method0 f) { pool.execute(f::accept); }
 
-    public final void switchIo             () {
+    public final void switchAddress       () {
         var peerPreviousAddress = peerCurAddress;
         peerCurAddress = peerAddressSwitcher.next();
         ifNull(reswitchHandler, (addr_prev,addr_new) -> {}).accept(peerPreviousAddress, peerCurAddress);
     }
-    public final void setReswitchPredicate (Function1<Boolean, Integer> f) {
+    public final void setReswitchPredicate(Function1<Boolean, Integer> f) {
         reswitchPredicate = f;}
-    public final void setReswitchLimit     (Integer max) {setReswitchPredicate(i -> i <= max);}
-    public final void setReswitchTimeoutMs (Function0<Integer>          f) {reswitchTimeoutMs = f;}
-    public final void setReswitchHandler   (Method2<InetSocketAddress, InetSocketAddress> f) {reswitchHandler = f;}
+    public final void setReswitchLimit    (Integer max) {setReswitchPredicate(i -> i <= max);}
+    public final void setReswitchTimeoutMs(Function0<Integer>          f) {reswitchTimeoutMs = f;}
+    public final void setReswitchHandler  (Method2<InetSocketAddress, InetSocketAddress> f) {reswitchHandler = f;}
 }

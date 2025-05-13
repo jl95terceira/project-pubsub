@@ -12,13 +12,8 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 
-import jl95.lang.StrictMap;
-import jl95.lang.StrictSet;
-import jl95.lang.variadic.Function0;
-import jl95.lang.variadic.Function1;
-import jl95.lang.variadic.Function2;
-import jl95.lang.variadic.Method0;
-import jl95.lang.variadic.Method1;
+import jl95.lang.*;
+import jl95.lang.variadic.*;
 import jl95.net.io.Closeable;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
@@ -26,15 +21,16 @@ import jl95.net.io.managed.util.Defaults;
 
 public abstract class RetriableIos implements ManagedIos, Closeable {
 
-    private final StrictMap<InetSocketAddress, CloseableIos> iosMapByAddr        = strict(new ConcurrentHashMap<>());
-    private final StrictMap<InetSocketAddress, Object>       iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
-    private final StrictSet<InetSocketAddress>               addrsReconnecting   = strict(new HashSet<>());
-    private       Function0<Integer>           retryTimeoutMs;
-    private       Function1<Boolean, Integer>  retryPredicate;
-    private       Boolean                      toStopRetries = false;
-    private       Integer                      retriesSoFar  = 0;
-    private       Function0<Integer>           reconnectTimeoutMs;
-    private       Method1<CloseableIos>        onConnection  = ios -> {};
+    private final StrictMap<InetSocketAddress, CloseableIos>iosMapByAddr        = strict(new ConcurrentHashMap<>());
+    private final StrictMap<InetSocketAddress, Object>      iosReconnectSyncMap = strict(new ConcurrentHashMap<>());
+    private final StrictSet<InetSocketAddress>              addrsReconnecting   = strict(new HashSet<>());
+    private       Boolean                                   toStopRetries       = false;
+    private       Integer                                   retriesSoFar        = 0;
+    // settings
+    private       Function0<Integer>                        retryTimeoutMs;
+    private       Function1<Boolean, Integer>               retryPredicate;
+    private       Function0<Integer>                        reconnectTimeoutMs;
+    private       Method2<InetSocketAddress, CloseableIos>  onConnection;
 
     private <T> T   retried    (Function1<T, Ios> f) {
         while (!toStopRetries) {
@@ -90,7 +86,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
         iosReconnectSyncMap.put(addr, new Object());
         try {
             var ios = connect(addr);
-            onConnection.accept(ios);
+            ifNull(onConnection, (addr_, ios_) -> {}).accept(addr, ios);
             iosMapByAddr.put(addr, ios);
         }
         catch (Exception ex) {
@@ -142,7 +138,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
                     try {
                         ios = connect(addr);
                         try {
-                            onConnection.accept(ios);
+                            ifNull(onConnection, (addr_, ios_) -> {}).accept(addr, ios);
                         }
                         catch (Exception ex) {
                             try { ios.close(); }
@@ -164,7 +160,7 @@ public abstract class RetriableIos implements ManagedIos, Closeable {
     public final Boolean        isConnected       (InetSocketAddress addr) {
         return iosMapByAddr.containsKey(addr);
     }
-    public final void           setOnConnection   (Method1<CloseableIos> m) {
+    public final void           setOnConnection   (Method2<InetSocketAddress, CloseableIos> m) {
         onConnection = m;
     }
     public final void           setRetryTimeoutMs (Function0<Integer> t) { this.retryTimeoutMs = t; }
