@@ -1,4 +1,4 @@
-package parameters;
+package jl95;
 
 public class Parameters {
 
