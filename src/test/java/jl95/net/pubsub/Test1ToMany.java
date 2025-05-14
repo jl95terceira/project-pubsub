@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.net.pubsub.collections.MemberAdaptersCollection;
-import parameters.Parameters;
+import jl95.Parameters;
 
 public class Test1ToMany {
 
