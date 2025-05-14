@@ -32,6 +32,10 @@ public class SerdesDefaults {
                                     stringToJson            = StringToJson  .get();
     public static final Function1<String, JsonValue>
                                     stringFromJson          = StringFromJson.get();
+    public static final Function1<JsonValue, Boolean>
+                                    boolToJson              = BooleanToJson  .get();
+    public static final Function1<Boolean, JsonValue>
+                                    boolFromJson            = BooleanFromJson.get();
     public static final Function1<String, JsonValue>
                                     jsonToString            = JsonToString.get();
     public static final Function1<JsonValue, String>
