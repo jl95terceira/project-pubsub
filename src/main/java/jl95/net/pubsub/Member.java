@@ -22,14 +22,17 @@ import jl95.net.io.managed.SwitchingRetriableIos;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
+import jl95.net.pubsub.protocol.PublicationAcceptanceRequest;
 import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
 import jl95.net.pubsub.protocol.SubscriptionToAll;
 import jl95.net.pubsub.protocol.SubscriptionToNone;
 import jl95.net.io.util.Util;
 import jl95.net.pubsub.util.Message;
+import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
+import jl95.net.pubsub.util.serdes.PublicationAcceptanceRequestJsonSerdes;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.MessageType;
 import jl95.net.io.CloseableIos;
@@ -45,18 +48,20 @@ import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.net.rpc.switched.TypeSwitchedResponder;
+import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 import jl95.net.rpc.switched.TypedRequester;
 
 public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private static class Requesting {
 
-        public final jl95.net.rpc.RequesterIf<Message<Publication>,         Void> pubSender;
-        public final jl95.net.rpc.RequesterIf<Message<Close>,               Void> closeSender;
-        public final jl95.net.rpc.RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
-        public final jl95.net.rpc.RequesterIf<Message<SubscriptionByRegex>, Void> subReSender;
-        public final jl95.net.rpc.RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
-        public final jl95.net.rpc.RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
+        public final RequesterIf<Message<Publication>,         Void> pubSender;
+        public final RequesterIf<Message<Close>,               Void> closeSender;
+        public final RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
+        public final RequesterIf<Message<SubscriptionByRegex>, Void> subReSender;
+        public final RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
+        public final RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
 
         public Requesting(ManagedIos ios) {
 
@@ -75,14 +80,25 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
                                              .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_NONE .value);
         }
     }
-    private static class Responding {
+    private class Responding {
 
-        public final ResponderIf<JsonValue, Void> jsonReceiver;
+        public final TypeSwitchedResponderIf<JsonValue, JsonValue> switchedResponder;
 
         public Responding(ManagedIos ios) {
 
-            var sr = SenderReceiverIf.fromManagedIo(ios);
-            this.jsonReceiver = ResponderAdaptersCollection.asPostResponder(Responder.fromSr(sr));
+            this.switchedResponder = TypeSwitchedResponder.fromIo(ios.getIo());
+            switchedResponder
+                .adaptedRequest (MessageDeserializer.get(PublicationAcceptanceRequestJsonSerdes::fromJson))
+                .adaptedResponse(SerdesDefaults.boolToJson)
+                .addCase(MessageType.PUBLISH_ACCEPT_REQUEST .value, x -> {
+                    return true;
+                });
+            ResponderAdaptersCollection.asPostResponder(switchedResponder)
+                .adaptedRequest (MessageDeserializer.get(PublicationJsonSerdes::fromJson))
+                .addCase(MessageType.PUBLISH                .value, x -> {
+                    pubCallback.accept(x.body);
+                    return null;
+                });
         }
     }
 
@@ -223,16 +239,13 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     @Override
     synchronized public final void            consume         () {
         for (var responderIf: responderIfMap.values()) {
-            responderIf.jsonReceiver.respond(json -> {
-                pubCallback.accept(MessageDeserializer.get(PublicationJsonSerdes::fromJson).apply(json).body);
-                return null;
-            });
+            responderIf.switchedResponder.start();
         }
     }
     @Override
     synchronized public final VoidAwaitable   consumeStop     () {
 
-        var futures = I.of(responderIfMap.values()).map(r -> r.jsonReceiver.stop()).toList();
+        var futures = I.of(responderIfMap.values()).map(r -> r.switchedResponder.stop()).toList();
         return new VoidAwaitable() {
             @Override public void await() {
                 for (var future: futures) future.await();
@@ -245,7 +258,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     @Override
     synchronized public final Boolean         isConsuming     () {
 
-        return I.all(I.of(responderIfMap.values()).map(r -> r.jsonReceiver.isRunning()));
+        return I.all(I.of(responderIfMap.values()).map(r -> r.switchedResponder.isRunning()));
     }
     @Override
     synchronized public final void            onConsumed      (Method2<String, JsonValue> pubCallback) {

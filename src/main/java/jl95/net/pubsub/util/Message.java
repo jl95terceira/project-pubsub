@@ -14,8 +14,6 @@ public class Message<B> extends NamedDataClass {
     public UUID      memberId = null;
     public Set<UUID> stamps   = Set();
 
-
-
     @Override protected Iterable<Tuple2<String, ?>> namedData() {
         return I(
             tuple("id"      , id),

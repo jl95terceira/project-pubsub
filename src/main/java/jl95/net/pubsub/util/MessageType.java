@@ -4,6 +4,7 @@ public enum MessageType {
 
 //    HELLO_MEMBER             ("hello-member"),
     PUBLISH                  ("pub"),
+    PUBLISH_ACCEPT_REQUEST   ("pub-accept-req"),
     REQ_CLOSE                ("close"),
     REQ_SUBSCRIPTION_BY_LIST ("sub-list"),
     REQ_SUBSCRIPTION_BY_REGEX("sub-regex"),
