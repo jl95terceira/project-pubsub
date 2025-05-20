@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import jl95.lang.AutoMapper;
 import jl95.lang.AutoMappersCollection;
-import jl95.lang.Awaitable;
 import jl95.lang.StrictMap;
 import jl95.lang.VoidAwaitable;
 import jl95.net.io.CloseableIos;
@@ -129,7 +128,7 @@ public class Broker {
             for (var idOfOther: subscriptionsMap.keySet()) {
                 if (!getSubscription(idOfOther).accepts(pub.topicName)) continue;
                 if (!memberResponsesMap.containsKey(idOfOther)) continue;
-                memberResponsesMap.get(idOfOther).addToQueue(msg);
+                memberResponsesMap.get(idOfOther).sendPub(msg);
             }
             return true;
         };
