@@ -1,11 +1,9 @@
 package jl95.net.io.managed;
 
 import jl95.net.io.CloseableIos;
-import jl95.net.rpc.util.Util;
+import jl95.net.rpc.Util;
 
 import java.net.InetSocketAddress;
-
-import static jl95.lang.SuperPowers.I;
 
 public class SimpleRetriableServerIos extends SimpleRetriableIos {
 

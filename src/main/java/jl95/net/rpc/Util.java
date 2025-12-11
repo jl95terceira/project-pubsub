@@ -1,4 +1,4 @@
-package jl95.net.rpc.util;
+package jl95.net.rpc;
 
 import static jl95.lang.SuperPowers.uncheck;
 import static jl95.lang.SuperPowers.unchecked;
@@ -36,7 +36,7 @@ public class Util {
         public static CloseableIos getIoAsServer  (InetSocketAddress addr,
                                          Optional<Integer> clientConnectionTimeoutMs) {
             var clientSocketFuture = new CompletableFuture<Socket>();
-            var server = new Server(jl95.net.io.util.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
+            var server = new Server(jl95.net.io.Util.getSimpleServerSocket(addr, Defaults.acceptTimeoutMs));
             server.setAcceptCb((self, socket) -> {
                 clientSocketFuture.complete(socket);
             });

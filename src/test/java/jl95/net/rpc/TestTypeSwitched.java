@@ -8,7 +8,6 @@ import java.util.concurrent.CompletableFuture;
 import jl95.net.io.CloseableIos;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
-import jl95.net.rpc.util.Util;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 import jl95.net.rpc.switched.TypedRequester;

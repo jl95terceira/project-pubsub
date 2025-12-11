@@ -1,10 +1,9 @@
-package jl95.net.io.util;
+package jl95.net.io;
 
 import static jl95.lang.SuperPowers.sleep;
 import static jl95.lang.SuperPowers.uncheck;
 import static jl95.lang.SuperPowers.unchecked;
 
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -12,6 +11,7 @@ import java.net.SocketException;
 import java.util.concurrent.CompletableFuture;
 
 import jl95.lang.Awaitable;
+import jl95.net.io.util.Defaults;
 
 public class Util {
 

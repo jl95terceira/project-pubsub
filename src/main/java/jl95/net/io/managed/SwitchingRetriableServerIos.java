@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.I;
 import java.net.InetSocketAddress;
 
 import jl95.net.io.CloseableIos;
-import jl95.net.rpc.util.Util;
+import jl95.net.rpc.Util;
 
 public class SwitchingRetriableServerIos extends SwitchingRetriableIos {
 

@@ -3,7 +3,6 @@ package jl95.net.io;
 import jl95.lang.I;
 import jl95.net.io.managed.RetriableIos;
 import jl95.net.io.managed.SimpleRetriableClientIos;
-import jl95.net.io.util.Util;
 
 import java.net.InetSocketAddress;
 import java.util.UUID;

@@ -13,7 +13,6 @@ import jl95.net.io.managed.SwitchingRetriableClientIos;
 import jl95.net.io.managed.SwitchingRetriableIos;
 import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.collections.ResponderAdaptersCollection;
-import jl95.net.rpc.util.Util;
 
 public class TestSwitchingIo {
 
