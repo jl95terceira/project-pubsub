@@ -7,7 +7,7 @@ import java.util.UUID;
 
 import javax.json.JsonValue;
 
-import jl95.lang.NamedDataClass;
+import jl95.util.NamedDataClass;
 import jl95.lang.variadic.Tuple2;
 
 public class PublicationAcceptanceRequest extends NamedDataClass {

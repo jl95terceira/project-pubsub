@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-import jl95.lang.NamedDataClass;
+import jl95.util.NamedDataClass;
 import jl95.lang.variadic.*;
 
 public class ConnectionKey extends NamedDataClass {

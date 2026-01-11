@@ -7,8 +7,6 @@ import java.util.Map;
 
 import javax.json.JsonValue;
 
-import jl95.lang.Awaitable;
-import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
@@ -16,7 +14,7 @@ import jl95.net.rpc.util.TypedPayload;
 import jl95.net.rpc.util.serdes.TypedPayloadJsonSerdes;
 import jl95.net.io.Ios;
 import jl95.net.io.SenderReceiverIf;
-import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.util.UVoidFuture;
 
 public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue, JsonValue> {
 
@@ -66,7 +64,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue,
         callbacksCases.remove(typeAlias);
     }
     @Override
-    public final VoidAwaitable   start     () {
+    public final UVoidFuture start     () {
 
         return responder.respondWhile(tp -> {
             var callback = callbacksCases.getOrDefault(tp.typeAlias, callbacksDefault);
@@ -74,7 +72,7 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue,
         });
     }
     @Override
-    public final VoidAwaitable   stop      () {
+    public final UVoidFuture   stop      () {
 
         return responder.stop();
     }

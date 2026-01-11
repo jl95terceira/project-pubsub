@@ -6,8 +6,6 @@ import java.net.Socket;
 
 import javax.json.JsonValue;
 
-import jl95.lang.Awaitable;
-import jl95.lang.VoidAwaitable;
 import jl95.lang.variadic.Function1;
 import jl95.net.io.Ios;
 import jl95.net.pubsub.protocol.Close;
@@ -23,9 +21,10 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
-import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.net.rpc.collections.TypeSwitchedResponderAdaptersCollection;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
+import jl95.util.UVoidFuture;
 
 public class MemberRequestsConnection {
 
@@ -35,7 +34,7 @@ public class MemberRequestsConnection {
 
         public MemberIf(Ios ios) {
 
-            this.switchedResponder = ResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
+            this.switchedResponder = TypeSwitchedResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(PublicationJsonSerdes::fromJson))
                 .addCase(MessageType.PUBLISH.value, x -> {
@@ -90,20 +89,20 @@ public class MemberRequestsConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    public final VoidAwaitable startRespond         () {
+    public final UVoidFuture startRespond         () {
 
         return memberIf.switchedResponder.start();
     }
-    public final VoidAwaitable stopRespond          () {
+    public final UVoidFuture stopRespond          () {
 
         return memberIf.switchedResponder.stop();
     }
-    public final Boolean       isResponding         () {
+    public final Boolean     isResponding         () {
 
         return memberIf.switchedResponder.isRunning();
     }
-    public final Socket        getSocket            () { return socket; }
-    public final void          close                () {
+    public final Socket      getSocket            () { return socket; }
+    public final void        close                () {
         if (isResponding()) {
             stopRespond();
         }

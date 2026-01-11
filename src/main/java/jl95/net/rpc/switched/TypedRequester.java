@@ -4,7 +4,6 @@ import javax.json.JsonValue;
 
 import jl95.net.io.managed.ManagedIos;
 import jl95.net.rpc.Requester;
-import jl95.net.rpc.collections.RequesterAdaptersCollection;
 import jl95.net.rpc.RequesterIf;
 import jl95.net.rpc.util.TypedPayload;
 import jl95.net.rpc.util.serdes.TypedPayloadJsonSerdes;

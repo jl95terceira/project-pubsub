@@ -4,6 +4,7 @@ import static jl95.lang.SuperPowers.*;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
+import jl95.util.NamedDataClass;
 
 public class Close
     extends NamedDataClass {

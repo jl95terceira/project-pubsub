@@ -6,7 +6,6 @@ import javax.json.Json;
 import javax.json.JsonValue;
 
 import jl95.net.rpc.util.TypedPayload;
-import jl95.net.rpc.util.SerdesDefaults;
 
 public class TypedPayloadJsonSerdes {
 

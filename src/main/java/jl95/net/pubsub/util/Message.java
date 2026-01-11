@@ -6,6 +6,7 @@ import java.util.*;
 import static jl95.lang.SuperPowers.*;
 import jl95.lang.*;
 import jl95.lang.variadic.Tuple2;
+import jl95.util.NamedDataClass;
 
 public class Message<B> extends NamedDataClass {
 

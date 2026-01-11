@@ -3,20 +3,20 @@ package jl95.net.rpc.switched;
 import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.tuple;
 
-import jl95.lang.*;
 import jl95.lang.variadic.*;
 import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.util.TypedPayload;
+import jl95.util.UVoidFuture;
 
 public interface TypeSwitchedResponderIf<ABase, RBase> {
 
-    void            addCaseWhile  (String typeAlias,
-                                   Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
-    void            removeCase    (String typeAlias);
-    void            setDefaultCase(Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
-    VoidAwaitable   start         ();
-    VoidAwaitable   stop          ();
-    Boolean         isRunning     ();
+    void        addCaseWhile  (String typeAlias,
+                               Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    void        removeCase    (String typeAlias);
+    void        setDefaultCase(Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    UVoidFuture start         ();
+    UVoidFuture stop          ();
+    Boolean     isRunning     ();
     ResponderIf<TypedPayload, TypedPayload> getBaseResponder();
 
     default void
@@ -54,12 +54,12 @@ public interface TypeSwitchedResponderIf<ABase, RBase> {
                 }); }
 
             @Override
-            public VoidAwaitable start() {
+            public UVoidFuture start() {
                 return TypeSwitchedResponderIf.this.start();
             }
 
             @Override
-            public VoidAwaitable stop() {
+            public UVoidFuture stop() {
                 return TypeSwitchedResponderIf.this.stop();
             }
 

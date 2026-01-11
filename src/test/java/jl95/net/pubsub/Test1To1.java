@@ -51,12 +51,12 @@ public class Test1To1 {
     }
     private void   initBrokers   () {
         brokersList = new ArrayList<>(3);
-        broker1 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr1)));
-        broker2 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr2)));
-        broker3 = managed(new Broker(Util.getSimpleServerSocket(brokerAddr3)));
+        broker1 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr1)));
+        broker2 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr2)));
+        broker3 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr3)));
         for (var broker: brokersList) {
             System.out.printf("Broker (%s) start ...", broker.getBrokerId());
-            broker.startAccept().await();
+            broker.startAccept().get();
             System.out.println(" start OK");
         }
         broker1.linkBroker(brokerAddr2);
@@ -100,7 +100,7 @@ public class Test1To1 {
             member.close();
         }
         for (var broker: I.of(brokersList)) {
-            broker.stopAccept().await();
+            broker.stopAccept().get();
             uncheck(() -> broker.getNetServer().getSocket().close());
         }
     }
@@ -120,7 +120,7 @@ public class Test1To1 {
             MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
             zzz();
             org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
-            consumerMember.consumeStop().await();
+            consumerMember.consumeStop().get();
         });
         m.accept();
         m.accept();
@@ -138,7 +138,7 @@ public class Test1To1 {
             zzz();
             System.out.println("assert consumed");
             org.junit.Assert.assertFalse(msgFuture.isDone());
-            consumerMember.consumeStop().await();
+            consumerMember.consumeStop().get();
         });
         m.accept();
         m.accept();
@@ -164,7 +164,7 @@ public class Test1To1 {
             zzz();
             System.out.println("assert consumed");
             org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
-            consumerMember.consumeStop().await();
+            consumerMember.consumeStop().get();
             consumerMember.subscribeToNone();
             System.out.println("done");
         });

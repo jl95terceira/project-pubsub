@@ -1,41 +1,33 @@
 package jl95.net.pubsub.util;
 
-import static jl95.lang.SuperPowers.constant;
-import static jl95.lang.SuperPowers.function;
-import static jl95.lang.SuperPowers.tuple;
 import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.Socket;
 import java.util.concurrent.*;
 
-import jl95.lang.Awaitable;
-import jl95.lang.VoidAwaitable;
 import jl95.net.io.Ios;
-import jl95.net.io.Sender;
 import jl95.net.io.managed.ManagedIos;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.PublicationAcceptanceRequest;
-import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.PublicationAcceptanceRequestJsonSerdes;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
-import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
-import jl95.net.rpc.collections.RequesterAdaptersCollection;
-import jl95.net.rpc.collections.ResponderAdaptersCollection;
+import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
+import jl95.util.UVoidFuture;
 
 public class MemberResponsesConnection {
 
     private static class MemberIf {
 
-        public final RequesterIf<Message<Publication>, Void>                     pubSender;
+        public final RequesterIf<Message<Publication>, Void> pubSender;
         public final RequesterIf<Message<PublicationAcceptanceRequest>, Boolean> parSender;
 
         public MemberIf(ManagedIos ios) {
 
             var jsonTypedRequester = TypedRequester.fromManagedIo(ios);
-            this.pubSender = RequesterAdaptersCollection.asPostRequester(jsonTypedRequester)
+            this.pubSender = TypedRequesterAdaptersCollection.asPostRequester(jsonTypedRequester)
                 .adaptedRequest (MessageSerializer.get(PublicationJsonSerdes::toJson))
                 .getFunction(MessageType.PUBLISH                .value);
             this.parSender = jsonTypedRequester
@@ -66,13 +58,12 @@ public class MemberResponsesConnection {
         var parMsg = new Message<PublicationAcceptanceRequest>();
         parMsg.id       = pubMsg.id;
         parMsg.memberId = pubMsg.memberId;
-        var parOptions = new RequesterIf.SendOptions.Editable();
-        parOptions.responseTimeoutMs = constant(2000);
         Boolean accepted;
         try {
-            accepted = true;//memberIf.parSender.apply(parMsg, parOptions); //TODO: fix this (blocking)
+            accepted = true;//memberIf.parSender.apply(parMsg).get(2, TimeUnit.SECONDS); //TODO: fix this (blocking)
         }
-        catch (Requester.ResponseTimeoutException ex) {
+        //catch (TimeoutException | InterruptedException | ExecutionException ex) {
+        catch (Exception ex) {
             accepted = false;
         }
         if (accepted) {
@@ -80,7 +71,7 @@ public class MemberResponsesConnection {
         }
     }
 
-    synchronized public final void          startQueueLoop   () {
+    synchronized public final void        startQueueLoop   () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -96,12 +87,12 @@ public class MemberResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final VoidAwaitable stopQueueLoop    () {
+    synchronized public final UVoidFuture stopQueueLoop    () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
-        return VoidAwaitable.of(queueStopFuture);
+        return UVoidFuture.of(queueStopFuture);
     }
-    synchronized public final Boolean       isPubQueueRunning() { return queueIsOn; }
+    synchronized public final Boolean     isPubQueueRunning() { return queueIsOn; }
 
     public final void   addToQueue(Message<Publication> pubMsg) {
 
@@ -114,7 +105,7 @@ public class MemberResponsesConnection {
     public final Socket getSocket () { return socket; }
     public final void   close     () {
         if (isPubQueueRunning()) {
-            stopQueueLoop().await();
+            stopQueueLoop().get();
         }
         uncheck(getSocket()::close);
     }

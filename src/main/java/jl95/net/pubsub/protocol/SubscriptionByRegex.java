@@ -5,7 +5,7 @@ import static jl95.lang.SuperPowers.tuple;
 
 import java.util.regex.Pattern;
 
-import jl95.lang.NamedDataClass;
+import jl95.util.NamedDataClass;
 import jl95.lang.variadic.Tuple2;
 import jl95.net.pubsub.Subscription;
 

@@ -4,7 +4,7 @@ import static jl95.lang.SuperPowers.*;
 import java.util.HashSet;
 import java.util.Set;
 
-import jl95.lang.NamedDataClass;
+import jl95.util.NamedDataClass;
 import jl95.lang.variadic.*;
 import jl95.net.pubsub.Subscription;
 

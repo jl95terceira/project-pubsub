@@ -3,7 +3,6 @@ package jl95.net.pubsub.util;
 import static jl95.lang.SuperPowers.*;
 
 import java.net.Socket;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -11,10 +10,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import jl95.lang.*;
 import jl95.lang.variadic.*;
 import jl95.net.io.Ios;
-import jl95.net.io.Sender;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
@@ -26,10 +23,10 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
-import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
-import jl95.net.rpc.collections.RequesterAdaptersCollection;
+import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
+import jl95.util.UVoidFuture;
 
 public class BrokerResponsesConnection {
 
@@ -43,7 +40,7 @@ public class BrokerResponsesConnection {
 
         public MemberIf(Ios ios) {
 
-            var typedRequester = RequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
+            var typedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
             this.pubSender      = typedRequester.getFunction   (MessageType.PUBLISH                  .value)
                                                 .adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson));
             this.subListSender  = typedRequester.getFunction   (MessageType.REQ_SUBSCRIPTION_BY_LIST .value)
@@ -92,7 +89,7 @@ public class BrokerResponsesConnection {
         this.memberIf       = new MemberIf(ios);
     }
 
-    synchronized public final void          startQueueLoop    () {
+    synchronized public final void        startQueueLoop    () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -107,12 +104,12 @@ public class BrokerResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final VoidAwaitable stopQueueLoop     () {
+    synchronized public final UVoidFuture stopQueueLoop     () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
-        return VoidAwaitable.of(queueStopFuture);
+        return UVoidFuture.of(queueStopFuture);
     }
-    synchronized public final Boolean       isQueueLoopRunning() { return queueIsOn; }
+    synchronized public final Boolean     isQueueLoopRunning() { return queueIsOn; }
 
     public final void           addToQueue(Method1<Callbacks> cbCaller) {
 
@@ -125,7 +122,7 @@ public class BrokerResponsesConnection {
     public final Socket         getSocket () { return socket; }
     public final void           close     () {
         if (isQueueLoopRunning()) {
-            stopQueueLoop().await();
+            stopQueueLoop().get();
         }
         uncheck(getSocket()::close);
     }

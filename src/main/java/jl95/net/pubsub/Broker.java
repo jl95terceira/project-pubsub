@@ -9,10 +9,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import jl95.lang.AutoMapper;
-import jl95.lang.AutoMappersCollection;
-import jl95.lang.StrictMap;
-import jl95.lang.VoidAwaitable;
+import jl95.net.rpc.Requester;
+import jl95.net.rpc.Responder;
+import jl95.util.*;
 import jl95.net.io.CloseableIos;
 import jl95.net.io.Ios;
 import jl95.net.pubsub.listen.UpdateSubscription;
@@ -31,8 +30,6 @@ import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.pubsub.util.serdes.MessageDeserializer;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.protocol.HelloJsonSerdes;
-import jl95.net.rpc.Requester;
-import jl95.net.rpc.Responder;
 
 public class Broker {
 
@@ -41,24 +38,24 @@ public class Broker {
     // id
     private final UUID brokerId = UUID.randomUUID();
     // pub-sub management
-    private final StrictMap<UUID, MemberRequestsConnection>  memberRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, BrokerRequestsConnection>  brokerRequestsMap  = StrictMap.of(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, BrokerResponsesConnection> brokerResponsesMap = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberRequestsConnection>  memberRequestsMap  = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerRequestsConnection>  brokerRequestsMap  = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerResponsesConnection> brokerResponsesMap = strict(new ConcurrentHashMap<>());
     private final Object                                     brokerLinkSync     = new Object();
-    private final StrictMap<UUID, Subscription>              subscriptionsMap   = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, Subscription>              subscriptionsMap   = strict(new ConcurrentHashMap<>());
     // networking
     private final jl95.net.Server netServer;
     // listeners
-    private final StrictMap <UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionMap        = StrictMap.of(new ConcurrentHashMap<>());
+    private final StrictMap <UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionMap        = strict(new ConcurrentHashMap<>());
     private final AutoMapper<UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionAutoMapper = AutoMappersCollection.getUuidAutoMapper(listenersOnUpdateSubscriptionMap);
 
     public Broker(ServerSocket      socket) {
-        this.netServer = new jl95.net.Server(socket);
+        this.netServer = jl95.net.Server.fromSocket(socket);
         this.netServer.setAcceptCb((self, socket_) -> onAccept(socket_));
     }
     public Broker(InetSocketAddress addr) {
-        this(Util.getSimpleServerSocket(addr));
+        this(jl95.net.Util.getSimpleServerSocket(addr));
     }
 
     private void                       onAccept       (Socket socket) {
@@ -73,7 +70,7 @@ public class Broker {
                 memberIdFuture .complete(hello.memberId);
                 uncheck(() -> acceptedFuture.get());
                 return getBrokerId();
-            }).await();
+            }).get();
             var helloType = uncheck(() -> helloTypeFuture.get());
             var memberId  = uncheck(() -> memberIdFuture .get());
             Method2<UUID, Socket> register;
@@ -87,7 +84,7 @@ public class Broker {
             register.accept(memberId, socket);
             acceptedFuture.complete(null);
             if (helloResponder.isRunning()) {
-                helloResponder.stop().await();
+                helloResponder.stop().get();
             }
         }).start();
     }
@@ -152,7 +149,7 @@ public class Broker {
                 helloMsg.id       = UUID.randomUUID();
                 helloMsg.body     = new Hello(t.a1);
                 helloMsg.memberId = brokerId;
-                var otherId = t.a2.apply(helloMsg);
+                var otherId = t.a2.apply(helloMsg).get();
                 t.a4.accept(otherId, t.a3);
             }
         }
@@ -166,7 +163,7 @@ public class Broker {
         connection.subAllReqHandler   = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubAll  (msg));
         connection.subNoneReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubNone (msg));
         connection.pubReqHandler      = decorated(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
-        connection.startRespond().await();
+        connection.startRespond().get();
     }
     private void                       registerMemberResponsesLink(UUID memberId, Socket socket) {
         var connection = new MemberResponsesConnection(socket);
@@ -183,7 +180,7 @@ public class Broker {
             connection.subAllReqHandler   = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubAll  (msg));
             connection.subNoneReqHandler  = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubNone (msg));
             connection.pubReqHandler      = decorated(getPubReqHandler  (otherId), msg -> cbs -> cbs.onPub     (msg));
-            connection.startRespond().await();
+            connection.startRespond().get();
         }
     }
     private void                       registerBrokerResponsesLink(UUID otherId, Socket socket) {
@@ -201,11 +198,11 @@ public class Broker {
         }
     }
 
-    public final VoidAwaitable              startAccept     () {
+    public final UVoidFuture startAccept     () {
 
         return netServer.start();
     }
-    public final VoidAwaitable              stopAccept      () {
+    public final UVoidFuture              stopAccept      () {
 
         return netServer.stop();
     }
@@ -236,8 +233,8 @@ public class Broker {
         subscriptionsMap.put(memberId, subscription);
    }
     public final void                       linkBroker      (InetSocketAddress addr) {
-        linkBroker(Util.getSocketByConnect(addr),
-                   Util.getSocketByConnect(addr));
+        linkBroker(jl95.net.Util.getSocketByConnect(addr),
+                   jl95.net.Util.getSocketByConnect(addr));
     }
     public final void                       resetConnections() {
 

@@ -3,7 +3,7 @@ package jl95.net.pubsub.protocol;
 import static jl95.lang.SuperPowers.I;
 import static jl95.lang.SuperPowers.tuple;
 
-import jl95.lang.NamedDataClass;
+import jl95.util.NamedDataClass;
 import jl95.lang.variadic.Tuple2;
 
 public class PublicationResponse extends NamedDataClass {

@@ -6,6 +6,7 @@ import javax.json.JsonValue;
 
 import jl95.lang.*;
 import jl95.lang.variadic.*;
+import jl95.util.NamedDataClass;
 
 public class TypedPayload extends NamedDataClass {
 
