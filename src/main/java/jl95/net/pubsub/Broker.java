@@ -126,7 +126,7 @@ public class Broker {
             for (var idOfOther: subscriptionsMap.keySet()) {
                 if (!getSubscription(idOfOther).accepts(pub.topicName)) continue;
                 if (!memberResponsesMap.containsKey(idOfOther)) continue;
-                memberResponsesMap.get(idOfOther).addToQueue(msg);
+                memberResponsesMap.get(idOfOther).sendPub(msg);
             }
             return true;
         };

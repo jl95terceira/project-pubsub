@@ -5,6 +5,7 @@ import static jl95.lang.SuperPowers.uncheck;
 import java.net.Socket;
 import java.util.concurrent.*;
 
+import jl95.lang.variadic.Method0;
 import jl95.net.io.Ios;
 import jl95.net.io.managed.ManagedIos;
 import jl95.net.pubsub.protocol.Publication;
@@ -37,7 +38,7 @@ public class MemberResponsesConnection {
         }
     }
 
-    private final BlockingQueue<Message<Publication>>
+    private final BlockingQueue<Method0>
                                      queue          = new ArrayBlockingQueue<>(20);
     private final ThreadPoolExecutor pool           = new ScheduledThreadPoolExecutor(1);
     private final Socket             socket;
@@ -53,7 +54,7 @@ public class MemberResponsesConnection {
         this.memberIf       = new MemberIf(ManagedIos.of(ios));
     }
 
-    private void handlePub(Message<Publication> pubMsg) {
+    private void processPub(Message<Publication> pubMsg) {
 
         var parMsg = new Message<PublicationAcceptanceRequest>();
         parMsg.id       = pubMsg.id;
@@ -77,9 +78,9 @@ public class MemberResponsesConnection {
         queueStopFuture = new CompletableFuture<>();
         pool.execute(() -> {
             while (!queueToStop) {
-                var pubMsg = uncheck(() -> queue.poll(125L, TimeUnit.MILLISECONDS));
-                if (pubMsg != null) {
-                    handlePub(pubMsg);
+                var queuedAction = uncheck(() -> queue.poll(125L, TimeUnit.MILLISECONDS));
+                if (queuedAction != null) {
+                    queuedAction.accept();
                 }
             }
             queueIsOn = false;
@@ -94,13 +95,13 @@ public class MemberResponsesConnection {
     }
     synchronized public final Boolean     isPubQueueRunning() { return queueIsOn; }
 
-    public final void   addToQueue(Message<Publication> pubMsg) {
+    public final void   sendPub   (Message<Publication> pubMsg) {
 
         if (!isPubQueueRunning()) {
             startQueueLoop();
 
         }
-        queue.add(pubMsg);
+        queue.add(() -> processPub(pubMsg));
     }
     public final Socket getSocket () { return socket; }
     public final void   close     () {
