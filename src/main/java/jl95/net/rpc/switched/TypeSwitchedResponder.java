@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.*;
+import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.rpc.Responder;
 import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.util.TypedPayload;
@@ -20,8 +21,10 @@ public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue,
 
     public static class DefaultNotSetException extends RuntimeException {}
 
-    public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<JsonValue, JsonValue> responder) {
-        return new TypeSwitchedResponder(responder.adapted(
+    public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<byte[], byte[]> responder) {
+        return new TypeSwitchedResponder(responder
+                .adapted(SerdesDefaults.jsonFromBytes, SerdesDefaults.jsonToBytes)
+                .adapted(
             TypedPayloadJsonSerdes::fromJson,
             TypedPayloadJsonSerdes::toJson
         ));

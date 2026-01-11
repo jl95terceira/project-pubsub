@@ -146,10 +146,12 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
         this.responderIfMap     = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new Responding(e.getValue())));
         connectFunction         = () -> {
             var requestsHelloRequester  = Requester.fromManagedIo(requestsIos)
-                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+                    .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                    .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
             postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester);
             for (var responsesIos: responsesIosMap.values()) {
                 var responsesHelloRequester = Requester.fromManagedIo(responsesIos)
+                        .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
                         .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
                 postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester);
             }

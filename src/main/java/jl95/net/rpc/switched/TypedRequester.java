@@ -3,6 +3,7 @@ package jl95.net.rpc.switched;
 import javax.json.JsonValue;
 
 import jl95.net.io.managed.ManagedIos;
+import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.rpc.Requester;
 import jl95.net.rpc.RequesterIf;
 import jl95.net.rpc.util.TypedPayload;
@@ -12,9 +13,11 @@ import jl95.net.io.SenderReceiverIf;
 
 public class TypedRequester implements TypedRequesterIf<JsonValue, JsonValue> {
 
-    public static TypedRequester fromSimpleRpc(RequesterIf<JsonValue, JsonValue> requester) {
+    public static TypedRequester fromSimpleRpc(RequesterIf<byte[], byte[]> requester) {
 
-        return new TypedRequester(requester.adapted(
+        return new TypedRequester(requester
+                .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                .adapted(
             TypedPayloadJsonSerdes::toJson,
             TypedPayloadJsonSerdes::fromJson
         ));

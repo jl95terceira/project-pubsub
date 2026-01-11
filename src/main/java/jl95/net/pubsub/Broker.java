@@ -63,6 +63,7 @@ public class Broker {
             var memberIdFuture   = new CompletableFuture<UUID>();
             var helloTypeFuture  = new CompletableFuture<Hello.Type>();
             var helloResponder   = Responder.fromIo(Ios.fromSocket(socket))
+                    .adapted(SerdesDefaults.jsonFromBytes, SerdesDefaults.jsonToBytes)
                     .adapted(MessageDeserializer.get(HelloJsonSerdes::fromJson), (UUID id) -> SerdesDefaults.stringToJson.apply(id.toString()));
             var acceptedFuture = new CompletableFuture<Void>();
             helloResponder.respondOnce(hello -> {
@@ -136,11 +137,13 @@ public class Broker {
             var requestsIos  = CloseableIos.fromSocketLazy(requestsSocket);
             var responsesIos = CloseableIos.fromSocketLazy(responsesSocket);
             var requestsHelloRequester = Requester.fromIo(requestsIos)
-                .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
-                .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
+                    .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                    .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
+                    .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
             var responsesHelloRequester = Requester.fromIo(responsesIos)
-                .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
-                .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
+                    .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                    .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
+                    .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
             for (var t: I(
                 tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester,  requestsSocket,  method(this::registerBrokerResponsesLink)),
                 tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester, responsesSocket, method(this::registerBrokerRequestsLink))
