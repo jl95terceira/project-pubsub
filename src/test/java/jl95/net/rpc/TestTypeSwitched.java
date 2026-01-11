@@ -24,12 +24,12 @@ public class TestTypeSwitched {
     public void setUp() throws Exception {
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.io.util.Defaults.serverAddr);
-            return TypedRequesterAdaptersCollection.asStringPostGetRequester(TypedRequester.fromSimpleRpc(Requester.fromIo(ioAsServer)));
+            return TypedRequesterAdaptersCollection.asStringRequester(TypedRequester.fromSimpleRpc(Requester.fromIo(ioAsServer)));
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.io.util.Defaults.serverAddr);
-            return TypeSwitchedResponderAdaptersCollection.asStringPostGetResponder(TypeSwitchedResponder.fromIo(ioAsClient));
+            return TypeSwitchedResponderAdaptersCollection.asStringResponder(TypeSwitchedResponder.fromIo(ioAsClient));
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();
