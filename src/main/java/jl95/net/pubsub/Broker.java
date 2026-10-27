@@ -18,12 +18,11 @@ import jl95.net.pubsub.listen.UpdateSubscription;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
-import jl95.net.pubsub.util.BrokerRequestsConnection;
-import jl95.net.pubsub.util.BrokerResponsesConnection;
+import jl95.net.pubsub.util.BrokerResponder;
+import jl95.net.pubsub.util.BrokerRequester;
 import jl95.net.pubsub.util.Message;
-import jl95.net.pubsub.util.MemberResponsesConnection;
-import jl95.net.pubsub.util.MemberRequestsConnection;
-import jl95.net.io.Util;
+import jl95.net.pubsub.util.MemberRequester;
+import jl95.net.pubsub.util.MemberResponder;
 import jl95.lang.I;
 import jl95.lang.variadic.*;
 import jl95.net.pubsub.util.SerdesDefaults;
@@ -38,17 +37,16 @@ public class Broker {
     // id
     private final UUID brokerId = UUID.randomUUID();
     // pub-sub management
-    private final StrictMap<UUID, MemberRequestsConnection>  memberRequestsMap  = strict(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, MemberResponsesConnection> memberResponsesMap = strict(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, BrokerRequestsConnection>  brokerRequestsMap  = strict(new ConcurrentHashMap<>());
-    private final StrictMap<UUID, BrokerResponsesConnection> brokerResponsesMap = strict(new ConcurrentHashMap<>());
-    private final Object                                     brokerLinkSync     = new Object();
-    private final StrictMap<UUID, Subscription>              subscriptionsMap   = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberResponder> memberRespondersMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, MemberRequester> memberRequestersMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerResponder> brokerRespondersMap = strict(new ConcurrentHashMap<>());
+    private final StrictMap<UUID, BrokerRequester> brokerRequestersMap = strict(new ConcurrentHashMap<>());
+    private final Object brokerLinkSync = new Object();
+    private final StrictMap<UUID, Subscription> subscriptionsMap   = strict(new ConcurrentHashMap<>());
     // networking
     private final jl95.net.Server netServer;
     // listeners
     private final StrictMap <UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionMap        = strict(new ConcurrentHashMap<>());
-    private final AutoMapper<UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscriptionAutoMapper = AutoMappersCollection.getUuidAutoMapper(listenersOnUpdateSubscriptionMap);
 
     public Broker(ServerSocket      socket) {
         this.netServer = jl95.net.Server.fromSocket(socket);
@@ -76,10 +74,10 @@ public class Broker {
             var memberId  = uncheck(() -> memberIdFuture .get());
             Method2<UUID, Socket> register;
             switch (helloType) {
-                case MEMBER_REQUESTS  -> register = this::registerMemberRequestsLink;
-                case MEMBER_RESPONSES -> register = this::registerMemberResponsesLink;
-                case BROKER_REQUESTS  -> register = this::registerBrokerRequestsLink;
-                case BROKER_RESPONSES -> register = this::registerBrokerResponsesLink;
+                case MEMBER_REQUESTS  -> register = this::registerMemberResponder;
+                case MEMBER_RESPONSES -> register = this::registerMemberRequester;
+                case BROKER_REQUESTS  -> register = this::registerBrokerResponder;
+                case BROKER_RESPONSES -> register = this::registerBrokerRequester;
                 default -> throw new AssertionError();
             }
             register.accept(memberId, socket);
@@ -90,19 +88,20 @@ public class Broker {
         }).start();
     }
     private void                       resetConnection(UUID memberId) {
-        memberRequestsMap .get   (memberId).close();
-        memberRequestsMap .remove(memberId);
-        memberResponsesMap.get   (memberId).close();
-        memberResponsesMap.remove(memberId);
+        memberRespondersMap.get   (memberId).close();
+        memberRespondersMap.remove(memberId);
+        memberRequestersMap.get   (memberId).close();
+        memberRequestersMap.remove(memberId);
     }
     private <T>
-            RequestHandler<T>          decorated         (RequestHandler<T> handler, Function1<Method1<BrokerResponsesConnection.Callbacks>, Message<T>> brokerCbCallerSupplier) {
+            RequestHandler<T>          decorated         (RequestHandler<T> handler, Function1<Method1<BrokerRequester.Callbacks>,
+                                                          Message<T>> brokerCbCallerSupplier) {
         return msg -> {
             msg.stamps.add(getBrokerId());
-            var re = handler.apply(msg);
-            for (var e: brokerResponsesMap.entrySet()) {
-                var brokerId         = e.getKey  ();
-                var brokerConnection = e.getValue();
+            final Boolean re = handler.apply(msg);
+            for (var e: brokerRequestersMap.entrySet()) {
+                final UUID brokerId = e.getKey();
+                final BrokerRequester brokerConnection = e.getValue();
                 if (msg.stamps.contains(brokerId)) {
                     continue;
                 }
@@ -111,22 +110,28 @@ public class Broker {
             return re;
         };
     }
-    private RequestHandler<Close>      getCloseReqHandler(UUID entityId) { return msg -> !entityId.equals(msg.memberId); }
+    private RequestHandler<Close>      getCloseReqHandler(UUID entityId) {
+        return msg -> !entityId.equals(msg.memberId);
+    }
     private <S extends Subscription>
             RequestHandler<S>          getSubReqHandler  (UUID entityId) {
         return msg -> {
             setSubscription(msg.memberId, msg.body);
-            notifyListenersUpdateSubscription(new UpdateSubscription(msg.memberId, msg.body));
+            notifyListenersOnUpdateSubscription(new UpdateSubscription(msg.memberId, msg.body));
             return true;
         };
     }
     private RequestHandler<Publication>getPubReqHandler  (UUID entityId) {
         return msg -> {
             var pub = msg.body;
-            for (var idOfOther: subscriptionsMap.keySet()) {
-                if (!getSubscription(idOfOther).accepts(pub.topicName)) continue;
-                if (!memberResponsesMap.containsKey(idOfOther)) continue;
-                memberResponsesMap.get(idOfOther).sendPub(msg);
+            for (final UUID idOfOther: subscriptionsMap.keySet()) {
+                if (!getSubscription(idOfOther).accepts(pub.topicName)) {
+                    continue;
+                }
+                if (!memberRequestersMap.containsKey(idOfOther)) {
+                    continue;
+                }
+                memberRequestersMap.get(idOfOther).sendPub(msg);
             }
             return true;
         };
@@ -145,8 +150,8 @@ public class Broker {
                     .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
                     .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
             for (var t: I(
-                tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester,  requestsSocket,  method(this::registerBrokerResponsesLink)),
-                tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester, responsesSocket, method(this::registerBrokerRequestsLink))
+                tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester,  requestsSocket,  method(this::registerBrokerRequester)),
+                tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester, responsesSocket, method(this::registerBrokerResponder))
             )) {
                 var helloMsg = new Message<Hello>();
                 helloMsg.id       = UUID.randomUUID();
@@ -157,9 +162,10 @@ public class Broker {
             }
         }
     }
-    private void                       registerMemberRequestsLink (UUID memberId, Socket socket) {
-        var connection = new MemberRequestsConnection(socket);
-        memberRequestsMap.put(memberId, connection);
+
+    private void registerMemberResponder(UUID memberId, Socket socket) {
+        var connection = new MemberResponder(socket);
+        memberRespondersMap.put(memberId, connection);
         connection.closeReqHandler    = decorated(getCloseReqHandler(memberId), msg -> cbs -> {});
         connection.subListReqHandler  = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubList (msg));
         connection.subRegexReqHandler = decorated(getSubReqHandler  (memberId), msg -> cbs -> cbs.onSubRegex(msg));
@@ -168,15 +174,15 @@ public class Broker {
         connection.pubReqHandler      = decorated(getPubReqHandler  (memberId), msg -> cbs -> cbs.onPub     (msg));
         connection.startRespond().get();
     }
-    private void                       registerMemberResponsesLink(UUID memberId, Socket socket) {
-        var connection = new MemberResponsesConnection(socket);
-        memberResponsesMap.put(memberId, connection);
+    private void registerMemberRequester(UUID memberId, Socket socket) {
+        var connection = new MemberRequester(socket);
+        memberRequestersMap.put(memberId, connection);
         connection.startQueueLoop();
     }
-    private void                       registerBrokerRequestsLink (UUID otherId, Socket socket) {
+    private void registerBrokerResponder(UUID otherId, Socket socket) {
         synchronized (brokerLinkSync) {
-            var connection = new BrokerRequestsConnection(socket);
-            brokerRequestsMap.put(otherId, connection);
+            var connection = new BrokerResponder(socket);
+            brokerRespondersMap.put(otherId, connection);
             connection.closeReqHandler    = decorated(getCloseReqHandler(otherId), msg -> cbs -> {});
             connection.subListReqHandler  = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubList (msg));
             connection.subRegexReqHandler = decorated(getSubReqHandler  (otherId), msg -> cbs -> cbs.onSubRegex(msg));
@@ -186,26 +192,26 @@ public class Broker {
             connection.startRespond().get();
         }
     }
-    private void                       registerBrokerResponsesLink(UUID otherId, Socket socket) {
+    private void registerBrokerRequester(UUID otherId, Socket socket) {
         synchronized (brokerLinkSync) {
-            var connection = new BrokerResponsesConnection(socket);
-            brokerResponsesMap.put(otherId, connection);
+            var connection = new BrokerRequester(socket);
+            brokerRequestersMap.put(otherId, connection);
             connection.startQueueLoop();
         }
     }
+
     // listeners
-    synchronized
-    private void                       notifyListenersUpdateSubscription(UpdateSubscription update) {
+    private synchronized void notifyListenersOnUpdateSubscription(UpdateSubscription update) {
         for (var listener: listenersOnUpdateSubscriptionMap.values()) {
             listener.accept(update);
         }
     }
 
-    public final UVoidFuture startAccept     () {
+    public final UVoidFuture                startAccept     () {
 
         return netServer.start();
     }
-    public final UVoidFuture              stopAccept      () {
+    public final UVoidFuture                stopAccept      () {
 
         return netServer.stop();
     }
@@ -218,12 +224,12 @@ public class Broker {
     }
     public final Iterable<UUID>             getMemberIds    () {
 
-        return I.of(memberRequestsMap.keySet());
+        return I.of(memberRespondersMap.keySet());
     }
     public final Iterable<InetSocketAddress>getAddresses    () {
 
-        return I.of(memberRequestsMap.values())
-                 .map(MemberRequestsConnection::getSocket)
+        return I.of(memberRespondersMap.values())
+                 .map(MemberResponder::getSocket)
                  .map(socket -> new InetSocketAddress(socket.getInetAddress(), socket.getPort()));
     }
     public final Subscription               getSubscription (UUID memberId) {
@@ -241,7 +247,7 @@ public class Broker {
     }
     public final void                       resetConnections() {
 
-        for (var clientId: memberRequestsMap.keySet()) {
+        for (var clientId: memberRespondersMap.keySet()) {
             resetConnection(clientId);
         }
     }
@@ -252,9 +258,5 @@ public class Broker {
     public final void                       close           () {
         resetConnections();
         getNetServer().close();
-    }
-    // listeners
-    public final AutoMapper<UUID, Method1<UpdateSubscription>> listenersOnUpdateSubscription(Method1<UpdateSubscription> listener) {
-        return listenersOnUpdateSubscriptionAutoMapper;
     }
 }

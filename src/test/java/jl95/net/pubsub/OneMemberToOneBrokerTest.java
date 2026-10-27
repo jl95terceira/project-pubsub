@@ -8,13 +8,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
-import jl95.lang.I;
-import jl95.net.io.Util;
-import jl95.net.pubsub.collections.MemberAdaptersCollection;
 import jl95.Parameters;
+import jl95.lang.I;
+import jl95.net.pubsub.collections.MemberAdaptersCollection;
 
-public class Test1To1 {
+public class OneMemberToOneBrokerTest extends Test {
 
     public static boolean TEST_SAME_MEMBER  = true;
     public static boolean TEST_SAME_BROKER  = true;
@@ -38,9 +38,6 @@ public class Test1To1 {
     public Member member2OfBroker3;
     public Member member3OfBroker1;
 
-    private void   zzz() {
-        sleep(Parameters.zzzDuration);
-    }
     private Broker managed(Broker broker) {
         brokersList.add(broker);
         return broker;
@@ -91,7 +88,7 @@ public class Test1To1 {
     public void setUp() {
         t0 = Instant.now();
         initBrokers();
-        sleep(1000);
+        sleepLong();
         initMembers();
     }
     @org.junit.After
@@ -109,16 +106,20 @@ public class Test1To1 {
         var m = method(() -> {
             var msgFuture = new CompletableFuture<String>();
             System.out.println("consume");
-            MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
-                msgFuture.complete(payload);
-            });
-            zzz();
+            MemberAdaptersCollection.getStringConsumer(consumerMember)
+                    .consume((topic, payload) -> {
+                        msgFuture.complete(payload);
+                    });
+            sleepShort();
             System.out.println("subscribe");
-            consumerMember.subscribeByList(I("foo"));
-            zzz();
+            consumerMember.subscribeByList(I("foo"))
+                    .get(Parameters.waitSubscribeSeconds, TimeUnit.SECONDS);
+            sleepShort();
             System.out.println("produce");
-            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-            zzz();
+            MemberAdaptersCollection.getStringProducer(producerMember)
+                    .produce("foo", "BAR")
+                    .get(Parameters.waitProduceSeconds, TimeUnit.SECONDS);
+            sleepShort();
             org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
             consumerMember.consumeStop().get();
         });
@@ -132,10 +133,12 @@ public class Test1To1 {
             MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
                 msgFuture.complete(payload);
             });
-            zzz();
+            sleepShort();
             System.out.println("produce");
-            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-            zzz();
+            MemberAdaptersCollection.getStringProducer(producerMember)
+                    .produce("foo", "BAR")
+                    .get(Parameters.waitProduceSeconds, TimeUnit.SECONDS);
+            sleepLong();
             System.out.println("assert consumed");
             org.junit.Assert.assertFalse(msgFuture.isDone());
             consumerMember.consumeStop().get();
@@ -150,22 +153,28 @@ public class Test1To1 {
             MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
                 msgFuture.complete(payload);
             });
-            zzz();
+            sleepShort();
             System.out.println("produce");
-            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-            zzz();
+            MemberAdaptersCollection.getStringProducer(producerMember)
+                    .produce("foo", "BAR")
+                    .get(Parameters.waitProduceSeconds, TimeUnit.SECONDS);
+            sleepLong();
             System.out.println("assert NOT consumed (since not subscribed)");
             org.junit.Assert.assertFalse(msgFuture.isDone());
             System.out.println("subscribe");
-            consumerMember.subscribeByList(I("foo"));
-            zzz();
+            consumerMember.subscribeByList(I("foo"))
+                    .get(Parameters.waitSubscribeSeconds, TimeUnit.SECONDS);
+            sleepShort();
             System.out.println("produce");
-            MemberAdaptersCollection.getStringProducer(producerMember).produce("foo", "BAR");
-            zzz();
+            MemberAdaptersCollection.getStringProducer(producerMember)
+                    .produce("foo", "BAR")
+                    .get(Parameters.waitProduceSeconds, TimeUnit.SECONDS);
+            sleepShort();
             System.out.println("assert consumed");
             org.junit.Assert.assertEquals("BAR", uncheck(() -> msgFuture.get()));
             consumerMember.consumeStop().get();
-            consumerMember.subscribeToNone();
+            consumerMember.subscribeToNone()
+                    .get(Parameters.waitSubscribeSeconds, TimeUnit.SECONDS);
             System.out.println("done");
         });
         m.accept();

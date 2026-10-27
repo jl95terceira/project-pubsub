@@ -28,17 +28,17 @@ import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
 import jl95.util.UVoidFuture;
 
-public class BrokerResponsesConnection {
+public class BrokerRequester {
 
-    private static class MemberIf {
+    private static class Rpc {
 
         public final RequesterIf<Message<Publication>,         Void> pubSender;
         public final RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
         public final RequesterIf<Message<SubscriptionByRegex>, Void> subRegexSender;
         public final RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
-        public final RequesterIf<Message<SubscriptionToNone>, Void>  subNoneSender;
+        public final RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
 
-        public MemberIf(Ios ios) {
+        public Rpc(Ios ios) {
 
             var typedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
             this.pubSender      = typedRequester.getFunction   (MessageType.PUBLISH                  .value)
@@ -55,24 +55,21 @@ public class BrokerResponsesConnection {
     }
     private class CallbacksImpl implements Callbacks {
 
-        @Override public void onPub     (Message<Publication>         msg) { memberIf.pubSender     .apply(msg); }
-        @Override public void onSubList (Message<SubscriptionByList>  msg) { memberIf.subListSender .apply(msg); }
-        @Override public void onSubRegex(Message<SubscriptionByRegex> msg) { memberIf.subRegexSender.apply(msg); }
-        @Override public void onSubAll  (Message<SubscriptionToAll>   msg) { memberIf.subAllSender  .apply(msg); }
-        @Override public void onSubNone (Message<SubscriptionToNone>  msg) { memberIf.subNoneSender .apply(msg); }
+        @Override public void onPub     (Message<Publication>         msg) { rpc.pubSender     .apply(msg); }
+        @Override public void onSubList (Message<SubscriptionByList>  msg) { rpc.subListSender .apply(msg); }
+        @Override public void onSubRegex(Message<SubscriptionByRegex> msg) { rpc.subRegexSender.apply(msg); }
+        @Override public void onSubAll  (Message<SubscriptionToAll>   msg) { rpc.subAllSender  .apply(msg); }
+        @Override public void onSubNone (Message<SubscriptionToNone>  msg) { rpc.subNoneSender .apply(msg); }
     }
 
-    private final BlockingQueue<Method1<Callbacks>>
-                            queue          = new LinkedBlockingQueue<>();
-    private final ThreadPoolExecutor
-                            pool           = new ScheduledThreadPoolExecutor(1);
-    private      CompletableFuture<Void>
-                            queueStopFuture;
-    private      Boolean    queueIsOn      = false;
-    private      Boolean    queueToStop    = false;
+    private final BlockingQueue<Method1<Callbacks>> queue = new LinkedBlockingQueue<>();
+    private final ThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1);
+    private CompletableFuture<Void> queueStopFuture;
+    private Boolean queueIsOn = false;
+    private Boolean queueToStop = false;
 
-    private final Socket        socket;
-    private final MemberIf      memberIf;
+    private final Socket socket;
+    private final Rpc rpc;
     private final CallbacksImpl cbsImpl = new CallbacksImpl();
 
     public interface Callbacks {
@@ -83,13 +80,13 @@ public class BrokerResponsesConnection {
         void onSubNone (Message<SubscriptionToNone>  msg);
     }
 
-    public BrokerResponsesConnection(Socket socket) {
+    public BrokerRequester(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
-        this.memberIf       = new MemberIf(ios);
+        this.rpc = new Rpc(ios);
     }
 
-    synchronized public final void        startQueueLoop    () {
+    public synchronized final void        startQueueLoop    () {
         if (queueIsOn) { throw new IllegalStateException(); };
         queueToStop     = false;
         queueStopFuture = new CompletableFuture<>();
@@ -104,14 +101,13 @@ public class BrokerResponsesConnection {
         });
         queueIsOn = true;
     }
-    synchronized public final UVoidFuture stopQueueLoop     () {
+    public synchronized final UVoidFuture stopQueueLoop     () {
         if (!queueIsOn) { throw new IllegalStateException(); };
         queueToStop = true;
         return UVoidFuture.of(queueStopFuture);
     }
-    synchronized public final Boolean     isQueueLoopRunning() { return queueIsOn; }
-
-    public final void           addToQueue(Method1<Callbacks> cbCaller) {
+    public synchronized final Boolean     isQueueLoopRunning() { return queueIsOn; }
+    public final void   addToQueue(Method1<Callbacks> cbCaller) {
 
         if (!isQueueLoopRunning()) {
             startQueueLoop();
@@ -119,8 +115,8 @@ public class BrokerResponsesConnection {
         }
         queue.add(cbCaller);
     }
-    public final Socket         getSocket () { return socket; }
-    public final void           close     () {
+    public final Socket getSocket () { return socket; }
+    public final void   close     () {
         if (isQueueLoopRunning()) {
             stopQueueLoop().get();
         }

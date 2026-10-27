@@ -1,6 +1,6 @@
 package jl95.net.pubsub.util;
 
-import static jl95.lang.SuperPowers.*;
+import static jl95.lang.SuperPowers.uncheck;
 
 import java.net.Socket;
 
@@ -26,13 +26,13 @@ import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 import jl95.util.UVoidFuture;
 
-public class MemberRequestsConnection {
+public class BrokerResponder {
 
-    private class MemberIf {
+    private class Rpc {
 
         public final TypeSwitchedResponderIf<JsonValue, Void> switchedResponder;
 
-        public MemberIf(Ios ios) {
+        public Rpc(Ios ios) {
 
             this.switchedResponder = TypeSwitchedResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
             switchedResponder
@@ -40,7 +40,7 @@ public class MemberRequestsConnection {
                 .addCase(MessageType.PUBLISH.value, x -> {
                     pubReqHandler.apply(x);
                     return null;
-                });
+                    });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(CloseJsonSerdes::fromJson))
                 .addCase(MessageType.REQ_CLOSE.value, x -> {
@@ -74,8 +74,8 @@ public class MemberRequestsConnection {
         }
     }
 
-    private final Socket   socket;
-    private final MemberIf memberIf;
+    private final Socket socket;
+    private final Rpc rpc;
     public Function1<Boolean, Message<Close>>               closeReqHandler    = x -> { throw new AssertionError(); };
     public Function1<Boolean, Message<SubscriptionByList>>  subListReqHandler  = x -> { throw new AssertionError(); };
     public Function1<Boolean, Message<SubscriptionByRegex>> subRegexReqHandler = x -> { throw new AssertionError(); };
@@ -83,23 +83,23 @@ public class MemberRequestsConnection {
     public Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
     public Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
 
-    public MemberRequestsConnection(Socket socket) {
+    public BrokerResponder(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
-        this.memberIf       = new MemberIf(ios);
+        this.rpc = new Rpc(ios);
     }
 
     public final UVoidFuture startRespond         () {
 
-        return memberIf.switchedResponder.start();
+        return rpc.switchedResponder.start();
     }
     public final UVoidFuture stopRespond          () {
 
-        return memberIf.switchedResponder.stop();
+        return rpc.switchedResponder.stop();
     }
     public final Boolean     isResponding         () {
 
-        return memberIf.switchedResponder.isRunning();
+        return rpc.switchedResponder.isRunning();
     }
     public final Socket      getSocket            () { return socket; }
     public final void        close                () {

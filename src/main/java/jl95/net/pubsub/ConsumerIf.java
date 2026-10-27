@@ -6,10 +6,10 @@ import jl95.util.UVoidFuture;
 
 public interface ConsumerIf<C> {
 
-    void        consume         ();
-    UVoidFuture consumeStop     ();
-    Boolean     isConsuming     ();
-    void        onConsumed      (Method2<String, C> pubCallback);
+    void        consume    ();
+    UVoidFuture consumeStop();
+    Boolean     isConsuming();
+    void        onConsumed (Method2<String, C> pubCallback);
 
     default void consume(Method2<String, C> pubCallback) {
         onConsumed(pubCallback);

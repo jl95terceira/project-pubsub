@@ -18,7 +18,7 @@ import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.switched.TypedRequester;
 import jl95.util.UVoidFuture;
 
-public class MemberResponsesConnection {
+public class MemberRequester {
 
     private static class MemberIf {
 
@@ -45,10 +45,10 @@ public class MemberResponsesConnection {
     private final MemberIf           memberIf;
     private       CompletableFuture<Void>
                                      queueStopFuture;
-    private       Boolean            queueIsOn      = false;
-    private       Boolean            queueToStop    = false;
+    private       boolean            queueIsOn      = false;
+    private       boolean            queueToStop    = false;
 
-    public MemberResponsesConnection(Socket socket) {
+    public MemberRequester(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.memberIf       = new MemberIf(ManagedIos.of(ios));
@@ -59,7 +59,7 @@ public class MemberResponsesConnection {
         var parMsg = new Message<PublicationAcceptanceRequest>();
         parMsg.id       = pubMsg.id;
         parMsg.memberId = pubMsg.memberId;
-        Boolean accepted;
+        boolean accepted;
         try {
             accepted = true;//memberIf.parSender.apply(parMsg).get(2, TimeUnit.SECONDS); //TODO: fix this (blocking)
         }
@@ -93,7 +93,7 @@ public class MemberResponsesConnection {
         queueToStop = true;
         return UVoidFuture.of(queueStopFuture);
     }
-    synchronized public final Boolean     isPubQueueRunning() { return queueIsOn; }
+    synchronized public final boolean     isPubQueueRunning() { return queueIsOn; }
 
     public final void   sendPub   (Message<Publication> pubMsg) {
 

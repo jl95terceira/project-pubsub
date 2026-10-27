@@ -1,6 +1,6 @@
 package jl95.net.pubsub.util;
 
-import static jl95.lang.SuperPowers.uncheck;
+import static jl95.lang.SuperPowers.*;
 
 import java.net.Socket;
 
@@ -26,7 +26,7 @@ import jl95.net.rpc.switched.TypeSwitchedResponder;
 import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 import jl95.util.UVoidFuture;
 
-public class BrokerRequestsConnection {
+public class MemberResponder {
 
     private class MemberIf {
 
@@ -40,7 +40,7 @@ public class BrokerRequestsConnection {
                 .addCase(MessageType.PUBLISH.value, x -> {
                     pubReqHandler.apply(x);
                     return null;
-                    });
+                });
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(CloseJsonSerdes::fromJson))
                 .addCase(MessageType.REQ_CLOSE.value, x -> {
@@ -83,7 +83,7 @@ public class BrokerRequestsConnection {
     public Function1<Boolean, Message<SubscriptionToNone>>  subNoneReqHandler  = x -> { throw new AssertionError(); };
     public Function1<Boolean, Message<Publication>>         pubReqHandler      = x -> { throw new AssertionError(); };
 
-    public BrokerRequestsConnection(Socket socket) {
+    public MemberResponder(Socket socket) {
         this.socket         = socket;
         var ios             = Ios.fromSocketLazy(socket);
         this.memberIf       = new MemberIf(ios);
