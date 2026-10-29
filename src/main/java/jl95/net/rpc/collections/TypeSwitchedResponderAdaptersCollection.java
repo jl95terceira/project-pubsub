@@ -5,60 +5,60 @@ import static jl95.lang.SuperPowers.self;
 import javax.json.JsonValue;
 
 import jl95.net.pubsub.util.SerdesDefaults;
-import jl95.net.rpc.switched.TypeSwitchedResponderIf;
+import jl95.net.rpc.switched.TypeSwitchedResponder;
 
 public class TypeSwitchedResponderAdaptersCollection {
 
-    public static TypeSwitchedResponderIf<JsonValue, Void>      asPostResponder      (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<JsonValue, Void> asPostResponder      (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return responder.adapted(
             self::apply,
             x -> JsonValue.NULL
         );
     }
-    public static TypeSwitchedResponderIf<Void,      JsonValue> asGetResponder       (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<Void,      JsonValue> asGetResponder       (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return responder.adapted(
             x -> null,
             self::apply
         );
     }
-    public static TypeSwitchedResponderIf<String,    String>    asStringResponder    (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<String,    String> asStringResponder    (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return responder.adapted(
             SerdesDefaults.stringFromJson,
             SerdesDefaults.stringToJson
         );
     }
-    public static TypeSwitchedResponderIf<String,    Void>      asStringPostResponder(TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<String,    Void> asStringPostResponder(TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return asPostResponder(responder).adapted(
             SerdesDefaults.stringFromJson,
             x -> x
         );
     }
-    public static TypeSwitchedResponderIf<Void,      String>    asStringGetResponder (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<Void,      String> asStringGetResponder (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return asGetResponder(responder).adapted(
             x -> x,
             SerdesDefaults.stringToJson
         );
     }
-    public static TypeSwitchedResponderIf<byte[],    byte[]>    asBytesResponder     (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<byte[],    byte[]> asBytesResponder     (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return asStringResponder(responder).adapted(
             SerdesDefaults.bytesFromString,
             SerdesDefaults.bytesToString
         );
     }
-    public static TypeSwitchedResponderIf<byte[],    Void>      asBytesPostResponder (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<byte[],    Void> asBytesPostResponder (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return asStringPostResponder(responder).adapted(
             SerdesDefaults.bytesFromString,
             x -> x
         );
     }
-    public static TypeSwitchedResponderIf<Void,      byte[]>    asBytesGetResponder  (TypeSwitchedResponderIf<JsonValue, JsonValue> responder) {
+    public static TypeSwitchedResponder<Void,      byte[]> asBytesGetResponder  (TypeSwitchedResponder<JsonValue, JsonValue> responder) {
 
         return asStringGetResponder(responder).adapted(
             x -> x,

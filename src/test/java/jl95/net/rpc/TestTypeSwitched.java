@@ -1,35 +1,35 @@
 package jl95.net.rpc;
 
-import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.sleep;
 
 import java.util.concurrent.CompletableFuture;
 
-import jl95.net.io.CloseableIos;
+import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.Util;
 import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.collections.TypeSwitchedResponderAdaptersCollection;
+import jl95.net.rpc.switched.TypeSwitchedResponderImpl;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
-import jl95.net.rpc.switched.TypeSwitchedResponderIf;
+import jl95.net.rpc.switched.TypedRequesterImpl;
 import jl95.net.rpc.switched.TypedRequester;
-import jl95.net.rpc.switched.TypedRequesterIf;
 
 public class TestTypeSwitched {
 
-    CloseableIos ioAsServer;
-    CloseableIos ioAsClient;
-    TypedRequesterIf<String, String> requester;
-    TypeSwitchedResponderIf<String, String> responder;
+    CloseableIOStreamSupplier ioAsServer;
+    CloseableIOStreamSupplier ioAsClient;
+    TypedRequester<String, String> requester;
+    TypeSwitchedResponder<String, String> responder;
 
     @org.junit.Before
     public void setUp() throws Exception {
         var requesterFuture = CompletableFuture.supplyAsync(() -> {
             ioAsServer = Util.getIoAsServer(jl95.net.io.util.Defaults.serverAddr);
-            return TypedRequesterAdaptersCollection.asStringRequester(TypedRequester.fromSimpleRpc(Requester.fromIo(ioAsServer)));
+            return TypedRequesterAdaptersCollection.asStringRequester(TypedRequesterImpl.fromSimpleRpc(BytesIOSRRequester.of(ioAsServer)));
         }, (task) -> new Thread(task).start());
         sleep(50);
         var responderFuture = CompletableFuture.supplyAsync(() -> {
             ioAsClient = Util.getIoAsClient(jl95.net.io.util.Defaults.serverAddr);
-            return TypeSwitchedResponderAdaptersCollection.asStringResponder(TypeSwitchedResponder.fromIo(ioAsClient));
+            return TypeSwitchedResponderAdaptersCollection.asStringResponder(TypeSwitchedResponderImpl.fromIo(ioAsClient));
         }, (task) -> new Thread(task).start());
         requester = requesterFuture.get();
         responder = responderFuture.get();

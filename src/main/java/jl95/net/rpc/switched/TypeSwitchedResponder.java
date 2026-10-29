@@ -1,87 +1,88 @@
 package jl95.net.rpc.switched;
 
+import static jl95.lang.SuperPowers.self;
 import static jl95.lang.SuperPowers.tuple;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.json.JsonValue;
-
 import jl95.lang.variadic.*;
-import jl95.net.pubsub.util.SerdesDefaults;
 import jl95.net.rpc.Responder;
-import jl95.net.rpc.ResponderIf;
 import jl95.net.rpc.util.TypedPayload;
-import jl95.net.rpc.util.serdes.TypedPayloadJsonSerdes;
-import jl95.net.io.Ios;
-import jl95.net.io.SenderReceiverIf;
 import jl95.util.UVoidFuture;
 
-public class TypeSwitchedResponder implements TypeSwitchedResponderIf<JsonValue, JsonValue> {
+public interface TypeSwitchedResponder<ABase, RBase> {
 
-    public static class DefaultNotSetException extends RuntimeException {}
+    void        addCaseWhile  (String typeAlias,
+                               Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    void        removeCase    (String typeAlias);
+    void        setDefaultCase(Function1<Tuple2<RBase, Boolean>, ABase> responseFunction);
+    UVoidFuture start         ();
+    UVoidFuture stop          ();
+    Boolean     isRunning     ();
+    Responder<TypedPayload, TypedPayload> getBaseResponder();
 
-    public static TypeSwitchedResponder fromSimpleRpc(ResponderIf<byte[], byte[]> responder) {
-        return new TypeSwitchedResponder(responder
-                .adapted(SerdesDefaults.jsonFromBytes, SerdesDefaults.jsonToBytes)
-                .adapted(
-            TypedPayloadJsonSerdes::fromJson,
-            TypedPayloadJsonSerdes::toJson
-        ));
+    default void
+    addCase        (String                   typeAlias,
+                    Function1<RBase, ABase>  responseFunction) {
+        addCaseWhile(typeAlias, (ABase a) -> tuple(responseFunction.apply(a), true));
     }
-    public static TypeSwitchedResponder fromSr       (SenderReceiverIf<byte[], byte[]> sr) {
-        return fromSimpleRpc(Responder.fromSr(sr));
+    default void
+    addCaseBreak   (String                   typeAlias,
+                    Function1<RBase, ABase>  responseFunction) {
+        addCaseWhile(typeAlias, (ABase a) -> tuple(responseFunction.apply(a), false));
     }
-    public static TypeSwitchedResponder fromIo       (Ios ios) {
-        return fromSr(SenderReceiverIf.fromIo(ios));
-    }
+    default <ABase2, RBase2> TypeSwitchedResponder<ABase2, RBase2>
+    adapted        (Function1<ABase2, ABase> requestAdapter,
+                    Function1<RBase, RBase2> responseAdapter) {
+        return new TypeSwitchedResponder<>() {
 
-    private final ResponderIf<TypedPayload, TypedPayload>
-        responder;
-    private final Map<String, Function1<Tuple2<TypedPayload, Boolean>, TypedPayload>>
-        callbacksCases   = new HashMap<>();
-    private       Function1<Tuple2<TypedPayload, Boolean>, TypedPayload>
-        callbacksDefault = payload -> { throw new DefaultNotSetException(); };
+            @Override
+            public void addCaseWhile(String typeAlias, Function1<Tuple2<RBase2, Boolean>, ABase2> responseFunction) {
+                TypeSwitchedResponder.this.addCaseWhile(typeAlias, a -> {
+                    var r = responseFunction.apply(requestAdapter.apply(a));
+                    return tuple(responseAdapter.apply(r.a1), r.a2);
+                });
+            }
 
-    private TypeSwitchedResponder(ResponderIf<TypedPayload, TypedPayload> responder) {this.responder = responder;}
+            @Override
+            public void removeCase(String typeAlias) {
+                TypeSwitchedResponder.this.removeCase(typeAlias);
+            }
 
-    private Function1<Tuple2<TypedPayload, Boolean>, TypedPayload> makeCallback(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
-        return tp -> {
-            var r = responseFunction.apply(tp.payload);
-            return tuple(new TypedPayload(tp.typeAlias, r.a1), r.a2);
+            @Override
+            public void setDefaultCase(Function1<Tuple2<RBase2, Boolean>, ABase2> responseFunction) { TypeSwitchedResponder.this.setDefaultCase(a -> {
+                    var r = responseFunction.apply(requestAdapter.apply(a));
+                    return tuple(responseAdapter.apply(r.a1), r.a2);
+                }); }
+
+            @Override
+            public UVoidFuture start() {
+                return TypeSwitchedResponder.this.start();
+            }
+
+            @Override
+            public UVoidFuture stop() {
+                return TypeSwitchedResponder.this.stop();
+            }
+
+            @Override
+            public Boolean isRunning() {
+                return TypeSwitchedResponder.this.isRunning();
+            }
+
+            @Override
+            public Responder<TypedPayload, TypedPayload> getBaseResponder() {
+                return TypeSwitchedResponder.this.getBaseResponder();
+            }
         };
     }
+    default <ABase2> TypeSwitchedResponder<ABase2, RBase>
+    adaptedRequest (Function1<ABase2, ABase> requestAdapter) {
 
-    @Override
-    public final void            addCaseWhile(String typeAlias,
-                                              Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
-        callbacksCases.put(typeAlias, makeCallback(responseFunction));
+        return adapted(requestAdapter, self::apply);
     }
-    @Override
-    public final void            setDefaultCase(Function1<Tuple2<JsonValue, Boolean>, JsonValue> responseFunction) {
-        callbacksDefault = makeCallback(responseFunction);
-    }
-    @Override
-    public final void            removeCase(String typeAlias) {
+    default <RBase2> TypeSwitchedResponder<ABase, RBase2>
+    adaptedResponse(Function1<RBase, RBase2> responseAdapter) {
 
-        callbacksCases.remove(typeAlias);
+        return adapted(self::apply, responseAdapter);
     }
-    @Override
-    public final UVoidFuture start     () {
-
-        return responder.respondWhile(tp -> {
-            var callback = callbacksCases.getOrDefault(tp.typeAlias, callbacksDefault);
-            return callback.apply(tp);
-        });
-    }
-    @Override
-    public final UVoidFuture   stop      () {
-
-        return responder.stop();
-    }
-    @Override
-    public final Boolean         isRunning () {return responder.isRunning();}
-    @Override
-    public final ResponderIf<TypedPayload, TypedPayload> getBaseResponder() {return responder;}
 }
 

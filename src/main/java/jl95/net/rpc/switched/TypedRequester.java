@@ -1,48 +1,24 @@
 package jl95.net.rpc.switched;
 
-import javax.json.JsonValue;
+import static jl95.lang.SuperPowers.self;
 
-import jl95.net.io.managed.ManagedIos;
-import jl95.net.pubsub.util.SerdesDefaults;
+import jl95.lang.variadic.Function1;
 import jl95.net.rpc.Requester;
-import jl95.net.rpc.RequesterIf;
-import jl95.net.rpc.util.TypedPayload;
-import jl95.net.rpc.util.serdes.TypedPayloadJsonSerdes;
-import jl95.net.io.Ios;
-import jl95.net.io.SenderReceiverIf;
 
-public class TypedRequester implements TypedRequesterIf<JsonValue, JsonValue> {
+public interface TypedRequester<A, R> {
 
-    public static TypedRequester fromSimpleRpc(RequesterIf<byte[], byte[]> requester) {
+    Requester<A, R> getFunction(String typeAlias);
 
-        return new TypedRequester(requester
-                .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
-                .adapted(
-            TypedPayloadJsonSerdes::toJson,
-            TypedPayloadJsonSerdes::fromJson
-        ));
+    default <A2, R2> TypedRequester<A2, R2> adapted        (Function1<A, A2> requestAdapter,
+                                                            Function1<R2, R> responderAdapter) {
+        return typeAlias -> getFunction(typeAlias).adapted(requestAdapter, responderAdapter);
     }
-    public static TypedRequester fromSr       (SenderReceiverIf<byte[], byte[]> sr) {
-        return fromSimpleRpc(Requester.fromSr(sr));
+    default <A2> TypedRequester<A2, R> adaptedRequest (Function1<A, A2> requestAdapter) {
+
+        return adapted(requestAdapter, self::apply);
     }
-    public static TypedRequester fromIo       (Ios ios) {
+    default <R2> TypedRequester<A, R2> adaptedResponse(Function1<R2, R> responseAdapter) {
 
-        return fromSr(SenderReceiverIf.fromIo(ios));
-    }
-    public static TypedRequester fromManagedIo(ManagedIos ios) {
-
-        return fromSr(SenderReceiverIf.fromManagedIo(ios));
-    }
-
-    private final RequesterIf<TypedPayload, TypedPayload>
-        requester;
-
-    private TypedRequester(RequesterIf<TypedPayload, TypedPayload> requester) {this.requester = requester;}
-
-    @Override
-    public final RequesterIf<JsonValue, JsonValue> getFunction(String typeAlias) {
-
-        return requester.adapted(a -> new TypedPayload(typeAlias, a),
-                                 r -> r.payload);
+        return adapted(self::apply, responseAdapter);
     }
 }

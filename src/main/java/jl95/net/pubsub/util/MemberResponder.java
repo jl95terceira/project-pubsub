@@ -7,7 +7,7 @@ import java.net.Socket;
 import javax.json.JsonValue;
 
 import jl95.lang.variadic.Function1;
-import jl95.net.io.Ios;
+import jl95.net.io.IOStreamSupplier;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
@@ -22,19 +22,19 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.net.rpc.collections.TypeSwitchedResponderAdaptersCollection;
+import jl95.net.rpc.switched.TypeSwitchedResponderImpl;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
-import jl95.net.rpc.switched.TypeSwitchedResponderIf;
 import jl95.util.UVoidFuture;
 
 public class MemberResponder {
 
     private class MemberIf {
 
-        public final TypeSwitchedResponderIf<JsonValue, Void> switchedResponder;
+        public final TypeSwitchedResponder<JsonValue, Void> switchedResponder;
 
-        public MemberIf(Ios ios) {
+        public MemberIf(IOStreamSupplier ios) {
 
-            this.switchedResponder = TypeSwitchedResponderAdaptersCollection.asPostResponder(TypeSwitchedResponder.fromIo(ios));
+            this.switchedResponder = TypeSwitchedResponderAdaptersCollection.asPostResponder(TypeSwitchedResponderImpl.fromIo(ios));
             switchedResponder
                 .adaptedRequest(MessageDeserializer.get(PublicationJsonSerdes::fromJson))
                 .addCase(MessageType.PUBLISH.value, x -> {
@@ -85,7 +85,7 @@ public class MemberResponder {
 
     public MemberResponder(Socket socket) {
         this.socket         = socket;
-        var ios             = Ios.fromSocketLazy(socket);
+        var ios             = IOStreamSupplier.fromSocketLazy(socket);
         this.memberIf       = new MemberIf(ios);
     }
 

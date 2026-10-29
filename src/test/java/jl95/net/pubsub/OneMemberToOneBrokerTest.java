@@ -3,8 +3,10 @@ package jl95.net.pubsub;
 import static jl95.lang.SuperPowers.*;
 
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +18,21 @@ import jl95.net.pubsub.collections.MemberAdaptersCollection;
 
 public class OneMemberToOneBrokerTest extends Test {
 
+    public static class NumberedBroker extends Broker {
+        public final int nr;
+        public NumberedBroker(int nr, ServerSocket serverSocket) {
+            super(serverSocket);
+            this.nr = nr;
+        }
+    }
+    public static class NumberedMember extends Member {
+        public final int nr;
+        public NumberedMember(int nr, InetSocketAddress addr) {
+            super(I(addr));
+            this.nr = nr;
+        }
+    }
+
     public static boolean TEST_SAME_MEMBER  = true;
     public static boolean TEST_SAME_BROKER  = true;
     public static boolean TEST_MULTI_BROKER_ONE_JUMP  = true;
@@ -25,60 +42,63 @@ public class OneMemberToOneBrokerTest extends Test {
     public final InetSocketAddress brokerAddr1 = new InetSocketAddress("127.0.0.1", 42421);
     public final InetSocketAddress brokerAddr2 = new InetSocketAddress("127.0.0.1", 42422);
     public final InetSocketAddress brokerAddr3 = new InetSocketAddress("127.0.0.1", 42423);
-    public List<Broker> brokersList;
-    public Broker broker1;
-    public Broker broker2;
-    public Broker broker3;
-    public List<Member> membersList;
-    public Member member1OfBroker1;
-    public Member member2OfBroker1;
-    public Member member1OfBroker2;
-    public Member member2OfBroker2;
-    public Member member1OfBroker3;
-    public Member member2OfBroker3;
-    public Member member3OfBroker1;
+    public List<NumberedBroker> brokersList;
+    public NumberedBroker broker1;
+    public NumberedBroker broker2;
+    public NumberedBroker broker3;
+    public List<NumberedMember> membersList;
+    public NumberedMember member1OfBroker1;
+    public NumberedMember member2OfBroker1;
+    public NumberedMember member1OfBroker2;
+    public NumberedMember member2OfBroker2;
+    public NumberedMember member1OfBroker3;
+    public NumberedMember member2OfBroker3;
+    public NumberedMember member3OfBroker1;
 
-    private Broker managed(Broker broker) {
+    private NumberedBroker managed(NumberedBroker broker) {
         brokersList.add(broker);
         return broker;
     }
-    private Member managed(Member member) {
+    private NumberedMember managed(NumberedMember member) {
         membersList.add(member);
         return member;
     }
     private void   initBrokers   () {
         brokersList = new ArrayList<>(3);
-        broker1 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr1)));
-        broker2 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr2)));
-        broker3 = managed(new Broker(jl95.net.Util.getSimpleServerSocket(brokerAddr3)));
-        for (var broker: brokersList) {
-            System.out.printf("Broker (%s) start ...", broker.getBrokerId());
+        broker1 = managed(new NumberedBroker(1, jl95.net.Util.getSimpleServerSocket(brokerAddr1)));
+        broker2 = managed(new NumberedBroker(2, jl95.net.Util.getSimpleServerSocket(brokerAddr2)));
+        broker3 = managed(new NumberedBroker(3, jl95.net.Util.getSimpleServerSocket(brokerAddr3)));
+        for (final var broker: brokersList) {
+            System.out.printf("Broker %s start ...", broker.nr);
             broker.startAccept().get();
             System.out.println(" start OK");
         }
         broker1.linkBroker(brokerAddr2);
-        System.out.printf("Broker (%s) linked to broker (%s)\n", broker1.getBrokerId(), broker2.getBrokerId());
+        System.out.printf("Broker %s linked to broker %s\n", broker1.nr, broker2.nr);
         broker2.linkBroker(brokerAddr3);
-        System.out.printf("Broker (%s) linked to broker (%s)\n", broker2.getBrokerId(), broker3.getBrokerId());
+        System.out.printf("Broker %s linked to broker %s\n", broker2.nr, broker3.nr);
     }
     private void   restartBrokers() {
-        for (var broker: brokersList) {
+        for (final var broker: brokersList) {
             broker.stopAccept();
             broker.close();
+            System.out.printf("Broker %s closed\n", broker.nr);
         }
         initBrokers();
     }
     private void   initMembers   () {
-        membersList = new ArrayList<>(7);
-        member1OfBroker1 = managed(Member.of(brokerAddr1));
-        member2OfBroker1 = managed(Member.of(brokerAddr1));
-        member1OfBroker2 = managed(Member.of(brokerAddr2));
-        member2OfBroker2 = managed(Member.of(brokerAddr2));
-        member1OfBroker3 = managed(Member.of(brokerAddr3));
-        member2OfBroker3 = managed(Member.of(brokerAddr3));
-        member3OfBroker1 = managed(Member.of(brokerAddr1));
+        final int membersCount = 7;
+        membersList = new ArrayList<>(membersCount);
+        final Iterator<Integer> it = I.range(7).map(i -> 1+i).iterator();
+        member1OfBroker1 = managed(new NumberedMember(it.next(), brokerAddr1));
+        member2OfBroker1 = managed(new NumberedMember(it.next(), brokerAddr1));
+        member1OfBroker2 = managed(new NumberedMember(it.next(), brokerAddr2));
+        member2OfBroker2 = managed(new NumberedMember(it.next(), brokerAddr2));
+        member1OfBroker3 = managed(new NumberedMember(it.next(), brokerAddr3));
+        member2OfBroker3 = managed(new NumberedMember(it.next(), brokerAddr3));
+        member3OfBroker1 = managed(new NumberedMember(it.next(), brokerAddr1));
         for (var member: membersList) {
-            System.out.printf("Member (%s) connecting ...", member.getMemberId());
+            System.out.printf("Member %s connecting ...", member.nr);
             member.connect();
             System.out.println(" connection OK");
         }
@@ -95,6 +115,7 @@ public class OneMemberToOneBrokerTest extends Test {
     public void tearDown() {
         for (var member: I.of(membersList).filter(Objects::nonNull)) {
             member.close();
+            System.out.printf("Member %s closed\n", member.nr);
         }
         for (var broker: I.of(brokersList)) {
             broker.stopAccept().get();
@@ -127,7 +148,7 @@ public class OneMemberToOneBrokerTest extends Test {
         m.accept();
     }
     public final void testPubNoSub       (Member producerMember, Member consumerMember) {
-        var m = method(() -> {
+        final var m = method(() -> {
             var msgFuture = new CompletableFuture<String>();
             System.out.println("consume");
             MemberAdaptersCollection.getStringConsumer(consumerMember).consume((topic, payload) -> {
@@ -143,8 +164,7 @@ public class OneMemberToOneBrokerTest extends Test {
             org.junit.Assert.assertFalse(msgFuture.isDone());
             consumerMember.consumeStop().get();
         });
-        m.accept();
-        m.accept();
+        I.range(2).forEach(i -> m.accept());
     }
     public final void testPubNoSubThenSub(Member producerMember, Member consumerMember) {
         var m = method(() -> {

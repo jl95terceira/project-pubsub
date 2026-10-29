@@ -6,28 +6,28 @@ import java.net.Socket;
 import java.util.concurrent.*;
 
 import jl95.lang.variadic.Method0;
-import jl95.net.io.Ios;
-import jl95.net.io.managed.ManagedIos;
+import jl95.net.io.IOStreamSupplier;
+import jl95.net.io.ManagedIOStream;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.PublicationAcceptanceRequest;
 import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.PublicationAcceptanceRequestJsonSerdes;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
-import jl95.net.rpc.RequesterIf;
+import jl95.net.rpc.Requester;
 import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
-import jl95.net.rpc.switched.TypedRequester;
+import jl95.net.rpc.switched.TypedRequesterImpl;
 import jl95.util.UVoidFuture;
 
 public class MemberRequester {
 
     private static class MemberIf {
 
-        public final RequesterIf<Message<Publication>, Void> pubSender;
-        public final RequesterIf<Message<PublicationAcceptanceRequest>, Boolean> parSender;
+        public final Requester<Message<Publication>, Void> pubSender;
+        public final Requester<Message<PublicationAcceptanceRequest>, Boolean> parSender;
 
-        public MemberIf(ManagedIos ios) {
+        public MemberIf(ManagedIOStream ios) {
 
-            var jsonTypedRequester = TypedRequester.fromManagedIo(ios);
+            var jsonTypedRequester = TypedRequesterImpl.fromManagedIo(ios);
             this.pubSender = TypedRequesterAdaptersCollection.asPostRequester(jsonTypedRequester)
                 .adaptedRequest (MessageSerializer.get(PublicationJsonSerdes::toJson))
                 .getFunction(MessageType.PUBLISH                .value);
@@ -50,8 +50,8 @@ public class MemberRequester {
 
     public MemberRequester(Socket socket) {
         this.socket         = socket;
-        var ios             = Ios.fromSocketLazy(socket);
-        this.memberIf       = new MemberIf(ManagedIos.of(ios));
+        var ios             = IOStreamSupplier.fromSocketLazy(socket);
+        this.memberIf       = new MemberIf(ManagedIOStream.of(ios));
     }
 
     private void processPub(Message<Publication> pubMsg) {

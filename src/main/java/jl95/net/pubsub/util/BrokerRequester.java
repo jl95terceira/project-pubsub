@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import jl95.lang.variadic.*;
-import jl95.net.io.Ios;
+import jl95.net.io.IOStreamSupplier;
 import jl95.net.pubsub.protocol.Publication;
 import jl95.net.pubsub.protocol.SubscriptionByList;
 import jl95.net.pubsub.protocol.SubscriptionByRegex;
@@ -23,24 +23,24 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByRegexJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
-import jl95.net.rpc.RequesterIf;
+import jl95.net.rpc.Requester;
 import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
-import jl95.net.rpc.switched.TypedRequester;
+import jl95.net.rpc.switched.TypedRequesterImpl;
 import jl95.util.UVoidFuture;
 
 public class BrokerRequester {
 
     private static class Rpc {
 
-        public final RequesterIf<Message<Publication>,         Void> pubSender;
-        public final RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
-        public final RequesterIf<Message<SubscriptionByRegex>, Void> subRegexSender;
-        public final RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
-        public final RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
+        public final Requester<Message<Publication>,         Void> pubSender;
+        public final Requester<Message<SubscriptionByList>,  Void> subListSender;
+        public final Requester<Message<SubscriptionByRegex>, Void> subRegexSender;
+        public final Requester<Message<SubscriptionToAll>,   Void> subAllSender;
+        public final Requester<Message<SubscriptionToNone>,  Void> subNoneSender;
 
-        public Rpc(Ios ios) {
+        public Rpc(IOStreamSupplier ios) {
 
-            var typedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequester.fromIo(ios));
+            var typedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequesterImpl.fromIo(ios));
             this.pubSender      = typedRequester.getFunction   (MessageType.PUBLISH                  .value)
                                                 .adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson));
             this.subListSender  = typedRequester.getFunction   (MessageType.REQ_SUBSCRIPTION_BY_LIST .value)
@@ -82,7 +82,7 @@ public class BrokerRequester {
 
     public BrokerRequester(Socket socket) {
         this.socket         = socket;
-        var ios             = Ios.fromSocketLazy(socket);
+        var ios             = IOStreamSupplier.fromSocketLazy(socket);
         this.rpc = new Rpc(ios);
     }
 

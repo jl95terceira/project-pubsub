@@ -10,14 +10,16 @@ import java.util.regex.Pattern;
 import javax.json.JsonValue;
 
 import jl95.lang.I;
+import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.ManagedIOStream;
+import jl95.net.io.managed.RetriableIOStream;
+import jl95.net.io.managed.SwitchingRetriableClientIOStream;
+import jl95.net.io.managed.SwitchingRetriableIOStream;
+import jl95.net.rpc.BytesIOSRRequester;
 import jl95.net.rpc.Requester;
-import jl95.net.rpc.RequesterIf;
+import jl95.net.rpc.switched.TypedRequester;
 import jl95.util.StrictMap;
 import jl95.lang.variadic.*;
-import jl95.net.io.managed.ManagedIos;
-import jl95.net.io.managed.RetriableIos;
-import jl95.net.io.managed.SwitchingRetriableClientIos;
-import jl95.net.io.managed.SwitchingRetriableIos;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
 import jl95.net.pubsub.protocol.Publication;
@@ -32,7 +34,6 @@ import jl95.net.pubsub.util.serdes.MessageSerializer;
 import jl95.net.pubsub.util.serdes.PublicationAcceptanceRequestJsonSerdes;
 import jl95.net.pubsub.util.serdes.PublicationJsonSerdes;
 import jl95.net.pubsub.util.MessageType;
-import jl95.net.io.CloseableIos;
 import jl95.net.pubsub.util.serdes.protocol.CloseJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.HelloJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionByListJsonSerdes;
@@ -41,47 +42,48 @@ import jl95.net.pubsub.util.serdes.protocol.SubscriptionToAllJsonSerdes;
 import jl95.net.pubsub.util.serdes.protocol.SubscriptionToNoneJsonSerdes;
 import jl95.net.rpc.collections.TypedRequesterAdaptersCollection;
 import jl95.net.rpc.collections.TypeSwitchedResponderAdaptersCollection;
+import jl95.net.rpc.switched.TypeSwitchedResponderImpl;
 import jl95.net.rpc.switched.TypeSwitchedResponder;
-import jl95.net.rpc.switched.TypeSwitchedResponderIf;
-import jl95.net.rpc.switched.TypedRequester;
+import jl95.net.rpc.switched.TypedRequesterImpl;
 import jl95.util.UFuture;
 import jl95.util.UVoidFuture;
 
-public class Member implements MemberIf<JsonValue, JsonValue> {
+public class Member implements Producer<JsonValue>, Consumer<JsonValue> {
 
-    private static class Requesting {
+    private static class RequestingFromBrokers {
 
-        public final RequesterIf<Message<Publication>,         Void> pubSender;
-        public final RequesterIf<Message<Close>,               Void> closeSender;
-        public final RequesterIf<Message<SubscriptionByList>,  Void> subListSender;
-        public final RequesterIf<Message<SubscriptionByRegex>, Void> subReSender;
-        public final RequesterIf<Message<SubscriptionToAll>,   Void> subAllSender;
-        public final RequesterIf<Message<SubscriptionToNone>,  Void> subNoneSender;
+        public final Requester<Message<Publication>,         Void> pubSender;
+        public final Requester<Message<Close>,               Void> closeSender;
+        public final Requester<Message<SubscriptionByList>,  Void> subListSender;
+        public final Requester<Message<SubscriptionByRegex>, Void> subReSender;
+        public final Requester<Message<SubscriptionToAll>,   Void> subAllSender;
+        public final Requester<Message<SubscriptionToNone>,  Void> subNoneSender;
 
-        public Requesting(ManagedIos ios) {
+        public RequestingFromBrokers(ManagedIOStream ios) {
 
-            var jsonTypedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequester.fromManagedIo(ios));
-            this.pubSender       = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
-                                             .getFunction   (MessageType.PUBLISH                  .value);
-            this.closeSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(CloseJsonSerdes              ::toJson))
-                                             .getFunction   (MessageType.REQ_CLOSE                .value);
-            this.subListSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByListJsonSerdes ::toJson))
-                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_LIST .value);
-            this.subReSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByRegexJsonSerdes::toJson))
-                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_REGEX.value);
-            this.subAllSender    = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToAllJsonSerdes  ::toJson))
-                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_ALL  .value);
-            this.subNoneSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToNoneJsonSerdes ::toJson))
-                                             .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_NONE .value);
+            final TypedRequester<JsonValue, Void>
+                    jsonTypedRequester = TypedRequesterAdaptersCollection.asPostRequester(TypedRequesterImpl.fromManagedIo(ios));
+            pubSender     = jsonTypedRequester.adaptedRequest(MessageSerializer.get(PublicationJsonSerdes        ::toJson))
+                                              .getFunction   (MessageType.PUBLISH                  .value);
+            closeSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(CloseJsonSerdes              ::toJson))
+                                              .getFunction   (MessageType.REQ_CLOSE                .value);
+            subListSender = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByListJsonSerdes ::toJson))
+                                              .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_LIST .value);
+            subReSender   = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionByRegexJsonSerdes::toJson))
+                                              .getFunction   (MessageType.REQ_SUBSCRIPTION_BY_REGEX.value);
+            subAllSender  = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToAllJsonSerdes  ::toJson))
+                                              .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_ALL  .value);
+            subNoneSender = jsonTypedRequester.adaptedRequest(MessageSerializer.get(SubscriptionToNoneJsonSerdes ::toJson))
+                                              .getFunction   (MessageType.REQ_SUBSCRIPTION_TO_NONE .value);
         }
     }
-    private class Responding {
+    private class RespondingToBrokers {
 
-        public final TypeSwitchedResponderIf<JsonValue, JsonValue> switchedResponder;
+        public final TypeSwitchedResponder<JsonValue, JsonValue> switchedResponder;
 
-        public Responding(ManagedIos ios) {
+        public RespondingToBrokers(ManagedIOStream ios) {
 
-            this.switchedResponder = TypeSwitchedResponder.fromIo(ios.getIo());
+            this.switchedResponder = TypeSwitchedResponderImpl.fromIo(ios.get());
             switchedResponder
                 .adaptedRequest (MessageDeserializer.get(PublicationAcceptanceRequestJsonSerdes::fromJson))
                 .adaptedResponse(SerdesDefaults.boolToJson)
@@ -106,9 +108,9 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     private final UUID memberId = UUID.randomUUID();
     private final Method0 closer;
-    private final SwitchingRetriableIos requestsIos;
-    private final Requesting requesterIf;
-    private final StrictMap<InetSocketAddress,Responding> responderIfMap;
+    private final SwitchingRetriableIOStream requestingFromPeerIos;
+    private final RequestingFromBrokers requestingFromBrokers;
+    private final StrictMap<InetSocketAddress, RespondingToBrokers> respondingToBrokersMap;
     private final Method0 connectFunction;
     private final Object gottenMessageIdsCacheSync = new Object();
     //TODO: define set and queue of UUIDs of messages received - to drop messages already received before
@@ -119,42 +121,44 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     private Set<UUID> gottenMessageIdsCacheSet = new HashSet<>(gottenMessageIdsCacheSize);
     private Deque<UUID> gottenMessageIdsCacheQueue = new LinkedList<>();
 
-    private synchronized <A, R> UFuture<R> postget(A object, RequesterIf<Message<A>, R> sender) {
-        var msg = new Message<A>();
+    private synchronized <A, R> UFuture<R> postget(A object, Requester<Message<A>, R> sender) {
+        final Message<A> msg = new Message<>();
         msg.id       = UUID.randomUUID();
         msg.body     = object;
         msg.memberId = memberId;
         return sender.apply(msg);
     }
     private synchronized UVoidFuture produce(Publication pub) {
-        return postget(pub, requesterIf.pubSender).voided();
+        return postget(pub, requestingFromBrokers.pubSender).voided();
     }
     private synchronized void onConsumed(Method1<Publication> pubCallback) {
 
         this.pubCallback = pubCallback;
     }
 
-    private Member(Iterable<InetSocketAddress> brokerAddrs) {
+    protected Member(Iterable<InetSocketAddress> brokerAddrs) {
 
-        var responsesSocketMap  = I.of(brokerAddrs).toMap(a -> a, jl95.net.Util::getSocketByConnect);
-        requestsIos             = SwitchingRetriableClientIos.of(brokerAddrs);
-        var responsesIosMap     = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIos.of(CloseableIos.fromSocketLazy(e.getValue())));
-        this.closer             = unchecked(() -> {
-            requestsIos.close();
-            for (var responsesIos: responsesIosMap.values()) {
-                responsesIos.getInputStream().close();
+        final Map<InetSocketAddress, java.net.Socket>
+                responsesSocketMap = I.of(brokerAddrs).toMap(a -> a, jl95.net.Util::getSocketByConnect);
+        requestingFromPeerIos = SwitchingRetriableClientIOStream.of(brokerAddrs);
+        final Map<InetSocketAddress, ManagedIOStream>
+                responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIOStream.of(CloseableIOStreamSupplier.fromSocketLazy(e.getValue())));
+        closer = unchecked(() -> {
+            requestingFromPeerIos.close();
+            for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
+                responsesIos.get().close();
             }
         });
-        this.requesterIf        = new Requesting(requestsIos);
-        this.responderIfMap     = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new Responding(e.getValue())));
-        connectFunction         = () -> {
-            var requestsHelloRequester  = Requester.fromManagedIo(requestsIos)
+        requestingFromBrokers = new RequestingFromBrokers(requestingFromPeerIos);
+        respondingToBrokersMap = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new RespondingToBrokers(e.getValue())));
+        connectFunction = () -> {
+            final Requester<Message<Hello>, JsonValue> requestsHelloRequester = BytesIOSRRequester.of(requestingFromPeerIos)
                     .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
                     .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
             postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester)
                     .get(1, TimeUnit.MINUTES);
-            for (var responsesIos: responsesIosMap.values()) {
-                var responsesHelloRequester = Requester.fromManagedIo(responsesIos)
+            for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
+                final Requester<Message<Hello>, JsonValue> responsesHelloRequester = BytesIOSRRequester.of(responsesIos)
                         .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
                         .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
                 postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester)
@@ -193,23 +197,23 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     public final void close() {
 
-        requestsIos.setRetryLimit(0);
+        requestingFromPeerIos.setRetryLimit(0);
         if (connected) {
             try {
-                postget(new Close(), requesterIf.closeSender);
+                postget(new Close(), requestingFromBrokers.closeSender);
             }
-            catch (RetriableIos.NoMoreRetriesException ex) {}
+            catch (RetriableIOStream.NoMoreRetriesException ex) {}
         }
         closer.accept();
     }
     public final UUID getMemberId() { return memberId; }
     public final UVoidFuture subscribe       (SubscriptionByList sub) {
 
-        return postget(sub, requesterIf.subListSender).voided();
+        return postget(sub, requestingFromBrokers.subListSender).voided();
     }
     public final UVoidFuture subscribeByList (Set<String> topicNames) {
 
-        var sub = new SubscriptionByList();
+        final var sub = new SubscriptionByList();
         sub.topicNames = topicNames;
         return subscribe(sub);
     }
@@ -219,11 +223,11 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     public final UVoidFuture subscribe       (SubscriptionByRegex sub) {
 
-        return postget(sub, requesterIf.subReSender).voided();
+        return postget(sub, requestingFromBrokers.subReSender).voided();
     }
     public final UVoidFuture subscribeByRegex(Pattern             topicPattern) {
 
-        var sub = new SubscriptionByRegex();
+        final var sub = new SubscriptionByRegex();
         sub.topicPattern = topicPattern;
         return subscribe(sub);
     }
@@ -233,7 +237,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     public final UVoidFuture subscribe       (SubscriptionToAll   sub) {
 
-        return postget(sub, requesterIf.subAllSender).voided();
+        return postget(sub, requestingFromBrokers.subAllSender).voided();
     }
     public final UVoidFuture subscribeToAll  () {
 
@@ -241,7 +245,7 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
     }
     public final UVoidFuture subscribe       (SubscriptionToNone  sub) {
 
-        return postget(sub, requesterIf.subNoneSender).voided();
+        return postget(sub, requestingFromBrokers.subNoneSender).voided();
     }
     public final UVoidFuture subscribeToNone () {
 
@@ -259,24 +263,24 @@ public class Member implements MemberIf<JsonValue, JsonValue> {
 
     @Override public synchronized final UVoidFuture produce    (String topicName, JsonValue data) {
 
-        var pub = new Publication();
+        final var pub = new Publication();
         pub.topicName = topicName;
         pub.data      = data;
         return produce(pub);
     }
     @Override public synchronized final void        consume    () {
-        for (var responderIf: responderIfMap.values()) {
+        for (var responderIf: respondingToBrokersMap.values()) {
             responderIf.switchedResponder.start();
         }
     }
     @Override public synchronized final UVoidFuture consumeStop() {
 
-        var futures = I.of(responderIfMap.values()).map(r -> r.switchedResponder.stop()).toList();
+        final var futures = I.of(respondingToBrokersMap.values()).map(r -> r.switchedResponder.stop()).toList();
         return UVoidFuture.joined(futures);
     }
     @Override public synchronized final Boolean     isConsuming() {
 
-        return I.all(I.of(responderIfMap.values()).map(r -> r.switchedResponder.isRunning()));
+        return I.all(I.of(respondingToBrokersMap.values()).map(r -> r.switchedResponder.isRunning()));
     }
     @Override public synchronized final void        onConsumed (Method2<String, JsonValue> pubCallback) {
 

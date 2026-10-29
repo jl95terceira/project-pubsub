@@ -9,11 +9,11 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import jl95.net.rpc.Requester;
-import jl95.net.rpc.Responder;
+import jl95.net.io.CloseableIOStreamSupplier;
+import jl95.net.io.IOStreamSupplier;
+import jl95.net.rpc.BytesIOSRRequester;
+import jl95.net.rpc.BytesIOSRResponder;
 import jl95.util.*;
-import jl95.net.io.CloseableIos;
-import jl95.net.io.Ios;
 import jl95.net.pubsub.listen.UpdateSubscription;
 import jl95.net.pubsub.protocol.Close;
 import jl95.net.pubsub.protocol.Hello;
@@ -60,16 +60,16 @@ public class Broker {
         new Thread(() -> {
             var memberIdFuture   = new CompletableFuture<UUID>();
             var helloTypeFuture  = new CompletableFuture<Hello.Type>();
-            var helloResponder   = Responder.fromIo(Ios.fromSocket(socket))
+            var helloResponder   = BytesIOSRResponder.of(IOStreamSupplier.fromSocket(socket))
                     .adapted(SerdesDefaults.jsonFromBytes, SerdesDefaults.jsonToBytes)
                     .adapted(MessageDeserializer.get(HelloJsonSerdes::fromJson), (UUID id) -> SerdesDefaults.stringToJson.apply(id.toString()));
             var acceptedFuture = new CompletableFuture<Void>();
-            helloResponder.respondOnce(hello -> {
+            new Thread(() -> helloResponder.respondOnce(hello -> {
                 helloTypeFuture.complete(hello.body.type);
                 memberIdFuture .complete(hello.memberId);
                 uncheck(() -> acceptedFuture.get());
                 return getBrokerId();
-            }).get();
+            })).start();
             var helloType = uncheck(() -> helloTypeFuture.get());
             var memberId  = uncheck(() -> memberIdFuture .get());
             Method2<UUID, Socket> register;
@@ -139,25 +139,25 @@ public class Broker {
     private void                       linkBroker        (Socket requestsSocket,
                                                           Socket responsesSocket) {
         synchronized (brokerLinkSync) {
-            var requestsIos  = CloseableIos.fromSocketLazy(requestsSocket);
-            var responsesIos = CloseableIos.fromSocketLazy(responsesSocket);
-            var requestsHelloRequester = Requester.fromIo(requestsIos)
+            final var requestsIos  = CloseableIOStreamSupplier.fromSocketLazy(requestsSocket);
+            final var responsesIos = CloseableIOStreamSupplier.fromSocketLazy(responsesSocket);
+            final var requestsHelloRequester = BytesIOSRRequester.of(requestsIos)
                     .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
                     .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
                     .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
-            var responsesHelloRequester = Requester.fromIo(responsesIos)
+            final var responsesHelloRequester = BytesIOSRRequester.of(responsesIos)
                     .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
                     .adaptedRequest (MessageSerializer.get(HelloJsonSerdes::toJson))
                     .adaptedResponse(json -> UUID.fromString(SerdesDefaults.stringFromJson.apply(json)));
-            for (var t: I(
+            for (final Tuple4<Hello.Type, jl95.net.rpc.IOSRRequester<Message<Hello>, UUID>, Socket, Method2<UUID, Socket>> t: I(
                 tuple(Hello.Type.BROKER_REQUESTS,  requestsHelloRequester,  requestsSocket,  method(this::registerBrokerRequester)),
                 tuple(Hello.Type.BROKER_RESPONSES, responsesHelloRequester, responsesSocket, method(this::registerBrokerResponder))
             )) {
-                var helloMsg = new Message<Hello>();
+                final var helloMsg = new Message<Hello>();
                 helloMsg.id       = UUID.randomUUID();
                 helloMsg.body     = new Hello(t.a1);
                 helloMsg.memberId = brokerId;
-                var otherId = t.a2.apply(helloMsg).get();
+                final var otherId = t.a2.apply(helloMsg).get();
                 t.a4.accept(otherId, t.a3);
             }
         }
