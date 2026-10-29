@@ -107,16 +107,16 @@ public class Member implements Producer<JsonValue>, Consumer<JsonValue> {
     public static Member of(InetSocketAddress...        addrs) {return new Member(I(addrs));}
 
     private final UUID memberId = UUID.randomUUID();
-    private final Method0 closer;
-    private final SwitchingRetriableIOStream requestingFromPeerIos;
-    private final RequestingFromBrokers requestingFromBrokers;
-    private final StrictMap<InetSocketAddress, RespondingToBrokers> respondingToBrokersMap;
-    private final Method0 connectFunction;
-    private final Object gottenMessageIdsCacheSync = new Object();
-    //TODO: define set and queue of UUIDs of messages received - to drop messages already received before
+    private final Iterable<InetSocketAddress> brokerAddrs;
 
+    private Method0 closer;
+    private SwitchingRetriableIOStream requestingFromBrokerIos;
+    private RequestingFromBrokers requestingFromBrokers;
+    private StrictMap<InetSocketAddress, RespondingToBrokers> respondingToBrokersMap;
+    private Method0 connectFunction;
     private boolean connected = false;
     private Method1<Publication> pubCallback = pub -> {/* pass */};
+    private Object gottenMessageIdsCacheSync = new Object();
     private int gottenMessageIdsCacheSize = 40;
     private Set<UUID> gottenMessageIdsCacheSet = new HashSet<>(gottenMessageIdsCacheSize);
     private Deque<UUID> gottenMessageIdsCacheQueue = new LinkedList<>();
@@ -138,33 +138,7 @@ public class Member implements Producer<JsonValue>, Consumer<JsonValue> {
 
     protected Member(Iterable<InetSocketAddress> brokerAddrs) {
 
-        final Map<InetSocketAddress, java.net.Socket>
-                responsesSocketMap = I.of(brokerAddrs).toMap(a -> a, jl95.net.Util::getSocketByConnect);
-        requestingFromPeerIos = SwitchingRetriableClientIOStream.of(brokerAddrs);
-        final Map<InetSocketAddress, ManagedIOStream>
-                responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIOStream.of(CloseableIOStreamSupplier.fromSocketLazy(e.getValue())));
-        closer = unchecked(() -> {
-            requestingFromPeerIos.close();
-            for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
-                responsesIos.get().close();
-            }
-        });
-        requestingFromBrokers = new RequestingFromBrokers(requestingFromPeerIos);
-        respondingToBrokersMap = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new RespondingToBrokers(e.getValue())));
-        connectFunction = () -> {
-            final Requester<Message<Hello>, JsonValue> requestsHelloRequester = BytesIOSRRequester.of(requestingFromPeerIos)
-                    .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
-                    .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-            postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester)
-                    .get(1, TimeUnit.MINUTES);
-            for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
-                final Requester<Message<Hello>, JsonValue> responsesHelloRequester = BytesIOSRRequester.of(responsesIos)
-                        .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
-                        .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
-                postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester)
-                        .get(1, TimeUnit.MINUTES);
-            }
-        };
+        this.brokerAddrs = brokerAddrs;
     }
 
     private boolean acceptAccordingToCache(Message<Publication> message) {
@@ -191,13 +165,37 @@ public class Member implements Producer<JsonValue>, Consumer<JsonValue> {
 
     public synchronized final void connect() {
 
-        connectFunction.accept();
+        final Map<InetSocketAddress, java.net.Socket>
+                responsesSocketMap = I.of(brokerAddrs).toMap(a -> a, jl95.net.Util::getSocketByConnect);
+        requestingFromBrokerIos = SwitchingRetriableClientIOStream.of(brokerAddrs /* TODO: handle each address and IO on (re)connect */);
+        final Map<InetSocketAddress, ManagedIOStream>
+                responsesIosMap = I.of(responsesSocketMap.entrySet()).toMap(Map.Entry::getKey, e -> ManagedIOStream.of(CloseableIOStreamSupplier.fromSocketLazy(e.getValue())));
+        closer = unchecked(() -> {
+            requestingFromBrokerIos.close();
+            for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
+                responsesIos.get().close();
+            }
+        });
+        requestingFromBrokers = new RequestingFromBrokers(requestingFromBrokerIos);
+        respondingToBrokersMap = strict(I.of(responsesIosMap.entrySet()).toMap(Map.Entry::getKey, e -> new RespondingToBrokers(e.getValue())));
+        final Requester<Message<Hello>, JsonValue> requestsHelloRequester = BytesIOSRRequester.of(requestingFromBrokerIos)
+                .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+        postget(new Hello(Hello.Type.MEMBER_REQUESTS),  requestsHelloRequester)
+                .get(1, TimeUnit.MINUTES);
+        for (final ManagedIOStream responsesIos: responsesIosMap.values()) {
+            final Requester<Message<Hello>, JsonValue> responsesHelloRequester = BytesIOSRRequester.of(responsesIos)
+                    .adapted(SerdesDefaults.jsonToBytes, SerdesDefaults.jsonFromBytes)
+                    .adaptedRequest(MessageSerializer.get(HelloJsonSerdes::toJson));
+            postget(new Hello(Hello.Type.MEMBER_RESPONSES), responsesHelloRequester)
+                    .get(1, TimeUnit.MINUTES);
+        }
         connected = true;
     }
 
     public final void close() {
 
-        requestingFromPeerIos.setRetryLimit(0);
+        requestingFromBrokerIos.setRetryLimit(0);
         if (connected) {
             try {
                 postget(new Close(), requestingFromBrokers.closeSender);
